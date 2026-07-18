@@ -36,6 +36,8 @@ import {
 import { buildAffiliateLinks } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
+/** Photo OCR + estimate parse can exceed default serverless limits. */
+export const maxDuration = 60;
 
 export const metadata: Metadata = {
   title: "Estimate Results",

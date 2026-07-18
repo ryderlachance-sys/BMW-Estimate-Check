@@ -1,0 +1,20 @@
+{
+  "functions": {
+    "app/api/upload/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "app/results/[id]/page.tsx": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "app/upload/page.tsx": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "app/actions/estimate.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  }
+}

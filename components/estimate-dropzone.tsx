@@ -72,7 +72,7 @@ export function EstimateDropzone({
         {uploading ? "Uploading…" : "Drop your estimate here, or click to browse"}
       </span>
       <span className="text-xs text-muted-foreground">
-        PDF, PNG, JPG, or WebP — up to 16 MB. Stays on your computer.
+        PDF, PNG, JPG, or WebP — up to 16 MB
       </span>
       <input
         ref={inputRef}

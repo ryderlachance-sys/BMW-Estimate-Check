@@ -85,9 +85,12 @@ function ocrQualityScore(text: string): number {
 async function ocrImage(buffer: Buffer): Promise<string> {
   const { createWorker } = await import("tesseract.js");
   const processed = await preprocessForOcr(buffer);
-  const worker = await createWorker("eng", 1, {
-    cachePath: path.join(process.cwd(), ".tesseract"),
-  });
+  // On Vercel the filesystem is read-only except /tmp.
+  const cachePath = path.join(
+    process.env.VERCEL ? "/tmp" : process.cwd(),
+    ".tesseract"
+  );
+  const worker = await createWorker("eng", 1, { cachePath });
   try {
     let best = "";
     let bestScore = -1;

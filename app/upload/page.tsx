@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { UploadForm } from "@/components/upload-form";
 
+export const dynamic = "force-dynamic";
+/** Photo OCR + estimate parse can exceed default serverless limits. */
+export const maxDuration = 60;
+
 export const metadata: Metadata = {
   title: "Check Your Estimate",
   description:
-    "Upload your BMW repair estimate and get an instant AI-powered price comparison against OEM and aftermarket parts.",
+    "Upload your BMW repair estimate and get an instant price comparison against OEM and aftermarket parts.",
 };
 
 export default function UploadPage() {
