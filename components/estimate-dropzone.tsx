@@ -65,7 +65,7 @@ async function ocrInBrowser(file: File): Promise<string> {
     let best = "";
     let bestScore = -1;
     for (const psm of ["4", "6"] as const) {
-      await worker.setParameters({ tessedit_pageseg_mode: psm });
+      await worker.setParameters({ tessedit_pageseg_mode: psm as never });
       const { data } = await worker.recognize(processed);
       const score = ocrQualityScore(data.text);
       if (score > bestScore) {
