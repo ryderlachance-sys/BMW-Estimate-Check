@@ -55,7 +55,7 @@ export default async function DashboardPage() {
       where: { userId: user.id },
       orderBy: [{ isFavorite: "desc" }, { updatedAt: "desc" }],
     }),
-    db.cartItem.count({ where: { userId: user.id } }),
+    db.cartItem.count({ where: { cart: { userId: user.id } } }),
   ]);
 
   return (
