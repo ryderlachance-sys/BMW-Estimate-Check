@@ -3,12 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/auth";
-import { formatCurrency, formatDate, round2 } from "@/lib/utils";
-import {
-  addBusinessDays,
-  generateTrackingNumber,
-} from "@/lib/delivery";
+import { formatCurrency, round2 } from "@/lib/utils";
+import { generateTrackingNumber } from "@/lib/delivery";
 import { sendOrderEmail } from "@/lib/email";
+import { markFulfillmentShipped } from "@/lib/fulfillment";
 import type { OrderStatus, StockStatus } from "@prisma/client";
 
 async function requireAdmin() {
@@ -24,6 +22,15 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
     include: { user: true },
   });
 
+  if (status === "SHIPPED") {
+    const tracking = existing.trackingNumber ?? generateTrackingNumber();
+    await markFulfillmentShipped(orderId, tracking);
+    revalidatePath("/admin/orders");
+    revalidatePath("/dashboard");
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    return;
+  }
+
   const data: {
     status: OrderStatus;
     trackingNumber?: string;
@@ -32,12 +39,6 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
     deliveredAt?: Date | null;
   } = { status };
 
-  if (status === "SHIPPED") {
-    data.trackingNumber = existing.trackingNumber ?? generateTrackingNumber();
-    data.estimatedDelivery =
-      existing.estimatedDelivery ?? addBusinessDays(new Date(), 3);
-    data.shippedAt = existing.shippedAt ?? new Date();
-  }
   if (status === "DELIVERED") {
     data.deliveredAt = existing.deliveredAt ?? new Date();
     if (!existing.shippedAt) data.shippedAt = new Date();
@@ -49,34 +50,6 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
     data,
     include: { user: true },
   });
-
-  if (status === "SHIPPED" && existing.status !== "SHIPPED") {
-    const dest =
-      order.shippingDestination === "MECHANIC"
-        ? order.mechanicShopName ?? "your repair shop"
-        : order.shippingName ?? "your address";
-    await sendOrderEmail({
-      userId: order.userId,
-      orderId: order.id,
-      toEmail: order.user.email,
-      type: "PARTS_SHIPPED",
-      subject: `Parts shipped — tracking ${order.trackingNumber}`,
-      body: [
-        `Hi ${order.user.name ?? "there"},`,
-        "",
-        `Your parts for order #${order.id.slice(-8).toUpperCase()} have shipped.`,
-        `Destination: ${dest}`,
-        `Tracking number: ${order.trackingNumber}`,
-        order.estimatedDelivery
-          ? `Estimated delivery: ${formatDate(order.estimatedDelivery)}`
-          : "",
-        "",
-        "Watch status updates on your dashboard.",
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    });
-  }
 
   if (status === "DELIVERED" && existing.status !== "DELIVERED") {
     const dest =
@@ -113,17 +86,25 @@ export async function updateOrderShipping(
   data: { trackingNumber?: string; estimatedDelivery?: string }
 ): Promise<void> {
   await requireAdmin();
-  await db.order.update({
-    where: { id: orderId },
-    data: {
-      ...(data.trackingNumber !== undefined
-        ? { trackingNumber: data.trackingNumber.trim() || null }
-        : {}),
-      ...(data.estimatedDelivery
-        ? { estimatedDelivery: new Date(data.estimatedDelivery) }
-        : {}),
-    },
-  });
+  const tracking = data.trackingNumber?.trim();
+  if (tracking) {
+    await markFulfillmentShipped(orderId, tracking);
+  } else {
+    await db.order.update({
+      where: { id: orderId },
+      data: {
+        ...(data.estimatedDelivery
+          ? { estimatedDelivery: new Date(data.estimatedDelivery) }
+          : {}),
+      },
+    });
+  }
+  if (data.estimatedDelivery && tracking) {
+    await db.order.update({
+      where: { id: orderId },
+      data: { estimatedDelivery: new Date(data.estimatedDelivery) },
+    });
+  }
   revalidatePath("/admin/orders");
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/orders/${orderId}`);

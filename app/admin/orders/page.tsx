@@ -18,7 +18,11 @@ import { OrderShippingEditor, OrderStatusSelect } from "@/components/admin-contr
 
 export default async function AdminOrdersPage() {
   const orders = await db.order.findMany({
-    include: { user: true, items: { include: { catalogPart: true } } },
+    include: {
+      user: true,
+      items: { include: { catalogPart: true } },
+      fulfillment: { include: { lines: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -28,7 +32,7 @@ export default async function AdminOrdersPage() {
         <div>
           <CardTitle>Orders</CardTitle>
           <CardDescription>
-            {orders.length} total — Mechanic Delivery, tracking, and fulfillment
+            {orders.length} total — after payment we auto-create buy sheets / webhook jobs. Paste tracking when shipped.
           </CardDescription>
         </div>
         <Link href="/api/admin/orders/export">
@@ -43,7 +47,7 @@ export default async function AdminOrdersPage() {
             <TableRow>
               <TableHead>Order</TableHead>
               <TableHead>Customer</TableHead>
-              <TableHead>Items</TableHead>
+              <TableHead>Buy / fulfill</TableHead>
               <TableHead>Ship to</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead>Status</TableHead>
@@ -59,6 +63,17 @@ export default async function AdminOrdersPage() {
             )}
             {orders.map((order) => {
               const isMechanic = order.shippingDestination === "MECHANIC";
+              const lines = order.fulfillment?.lines?.length
+                ? order.fulfillment.lines
+                : order.items.map((i) => ({
+                    id: i.id,
+                    description: `${i.catalogPart.brand} ${i.catalogPart.name}`,
+                    quantity: i.quantity,
+                    oemNumber: i.catalogPart.oemNumbers[0] ?? null,
+                    buyUrl: i.catalogPart.oemNumbers[0]
+                      ? `https://www.rockauto.com/en/partsearch/?partnum=${encodeURIComponent(i.catalogPart.oemNumbers[0])}`
+                      : null,
+                  }));
               return (
                 <TableRow key={order.id}>
                   <TableCell>
@@ -69,16 +84,37 @@ export default async function AdminOrdersPage() {
                         <Wrench className="size-3" /> Mechanic
                       </Badge>
                     )}
+                    {order.fulfillment && (
+                      <p className="mt-1 text-[10px] uppercase text-muted-foreground">
+                        Fulfill: {order.fulfillment.status}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell>
                     <p className="font-medium">{order.user.name ?? "—"}</p>
                     <p className="text-xs text-muted-foreground">{order.user.email}</p>
                   </TableCell>
-                  <TableCell className="max-w-64">
-                    <ul className="space-y-0.5 text-xs text-muted-foreground">
-                      {order.items.map((i) => (
-                        <li key={i.id}>
-                          {i.quantity}× {i.catalogPart.sku} — {i.catalogPart.name}
+                  <TableCell className="max-w-72">
+                    <ul className="space-y-1.5 text-xs">
+                      {lines.map((l) => (
+                        <li key={l.id}>
+                          <span className="text-muted-foreground">
+                            {l.quantity}× {l.description}
+                            {"oemNumber" in l && l.oemNumber ? ` · ${l.oemNumber}` : ""}
+                          </span>
+                          {"buyUrl" in l && l.buyUrl ? (
+                            <>
+                              <br />
+                              <a
+                                href={l.buyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-primary underline-offset-2 hover:underline"
+                              >
+                                Buy on RockAuto
+                              </a>
+                            </>
+                          ) : null}
                         </li>
                       ))}
                     </ul>

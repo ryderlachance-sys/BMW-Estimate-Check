@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 
 export type EmailType =
   | "ORDER_CONFIRMED"
+  | "PARTS_ORDERING"
+  | "FULFILLMENT_BUY_SHEET"
   | "PARTS_SHIPPED"
   | "PARTS_DELIVERED"
   | "DELIVERY_AFTER_APPOINTMENT";

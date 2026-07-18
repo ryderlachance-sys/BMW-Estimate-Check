@@ -35,6 +35,14 @@ enum StockStatus {
   SPECIAL_ORDER
 }
 
+enum FulfillmentStatus {
+  PENDING
+  PROCURING
+  ORDERED_FROM_SUPPLIER
+  SHIPPED
+  FAILED
+}
+
 model User {
   id        String   @id @default(cuid())
   clerkId   String   @unique
@@ -236,6 +244,7 @@ model Order {
   mechanic Mechanic?            @relation(fields: [mechanicId], references: [id], onDelete: SetNull)
   items    OrderItem[]
   emails   EmailNotification[]
+  fulfillment FulfillmentJob?
 
   @@index([userId])
   @@index([status])
@@ -253,4 +262,39 @@ model OrderItem {
   catalogPart CatalogPart @relation(fields: [catalogPartId], references: [id])
 
   @@index([orderId])
+}
+
+/** Created automatically when a card payment succeeds — tracks buying + shipping the parts. */
+model FulfillmentJob {
+  id               String            @id @default(cuid())
+  orderId          String            @unique
+  status           FulfillmentStatus @default(PENDING)
+  provider         String?
+  externalRef      String?
+  lastError        String?           @db.Text
+  procurementNotes String?           @db.Text
+  procuredAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  order Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lines ProcurementLine[]
+}
+
+model ProcurementLine {
+  id              String  @id @default(cuid())
+  jobId           String
+  catalogPartId   String
+  oemNumber       String?
+  description     String
+  quantity        Int
+  unitPrice       Float
+  buyUrl          String?
+  supplierStatus  String  @default("PENDING")
+  supplierOrderId String?
+  trackingNumber  String?
+
+  job FulfillmentJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
 }
