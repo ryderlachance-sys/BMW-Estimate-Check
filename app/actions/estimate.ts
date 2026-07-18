@@ -82,6 +82,20 @@ export async function createEstimate(
       await processEstimate(estimate.id);
     } catch (err) {
       console.error("background processEstimate failed", err);
+      try {
+        await db.estimate.update({
+          where: { id: estimate.id },
+          data: {
+            status: "FAILED",
+            errorMessage:
+              err instanceof Error
+                ? err.message
+                : "Estimate analysis crashed. Tap Retry analysis.",
+          },
+        });
+      } catch {
+        // ignore secondary failure
+      }
     }
   });
 

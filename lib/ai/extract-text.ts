@@ -85,12 +85,15 @@ function ocrQualityScore(text: string): number {
 async function ocrImage(buffer: Buffer): Promise<string> {
   const { createWorker } = await import("tesseract.js");
   const processed = await preprocessForOcr(buffer);
-  // On Vercel the filesystem is read-only except /tmp.
-  const cachePath = path.join(
-    process.env.VERCEL ? "/tmp" : process.cwd(),
-    ".tesseract"
-  );
-  const worker = await createWorker("eng", 1, { cachePath });
+  // On Vercel the filesystem is read-only except /tmp, and local .wasm files
+  // are often omitted from the serverless bundle — load core/worker from CDN.
+  const cachePath = path.join(process.env.VERCEL ? "/tmp" : process.cwd(), ".tesseract");
+  const worker = await createWorker("eng", 1, {
+    cachePath,
+    workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/worker.min.js",
+    corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@7/tesseract-core-simd.wasm.js",
+    langPath: "https://tessdata.projectnaptha.com/4.0.0",
+  });
   try {
     let best = "";
     let bestScore = -1;
