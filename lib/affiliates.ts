@@ -28,10 +28,28 @@ function firstOem(q: PartAffiliateQuery): string | null {
   return null;
 }
 
-function searchQuery(q: PartAffiliateQuery): string {
+function cleanName(name: string): string {
+  return name.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Amazon search text. Bare 11-digit BMW OEMs often land on "product not found"
+ * because Amazon treats them like bad ASINs — always include BMW + part name.
+ */
+function amazonSearchQuery(q: PartAffiliateQuery): string {
+  const oem = firstOem(q);
+  const name = cleanName(q.name);
+  const brand = q.brand && !/^genuine\s*bmw$/i.test(q.brand) ? q.brand : "BMW";
+  if (oem && name) return `BMW ${name} ${oem}`;
+  if (oem) return `BMW ${oem} auto part`;
+  return `${brand} ${name} BMW`.trim();
+}
+
+/** RockAuto / eBay / FCP: OEM alone is fine; fall back to brand + name. */
+function partsSearchQuery(q: PartAffiliateQuery): string {
   const oem = firstOem(q);
   if (oem) return oem;
-  return `${q.brand} ${q.name}`.trim();
+  return `${q.brand} ${cleanName(q.name)}`.trim();
 }
 
 function withAmazonTag(url: string): string {
@@ -51,28 +69,26 @@ function withEbayCampid(url: string): string {
 /** Build buy links for a catalog / matched part. Works with or without affiliate IDs. */
 export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
   const oem = firstOem(q);
-  const query = searchQuery(q);
-  const encoded = encodeURIComponent(query);
+  const amazonQ = encodeURIComponent(amazonSearchQuery(q));
+  const partsQ = encodeURIComponent(partsSearchQuery(q));
   const links: AffiliateLink[] = [];
 
-  // Amazon Associates — typically 1–4% on auto parts
+  // Automotive department search — not /dp/OEM (that causes "product not found")
   links.push({
     id: "amazon",
     label: "Amazon",
     hint: "Fast shipping",
-    url: withAmazonTag(`https://www.amazon.com/s?k=${encoded}`),
+    url: withAmazonTag(`https://www.amazon.com/s?k=${amazonQ}&i=automotive`),
   });
 
-  // eBay Partner Network — often 50–70% of eBay's fee share on parts
   links.push({
     id: "ebay",
     label: "eBay",
     hint: "Used & new",
-    url: withEbayCampid(`https://www.ebay.com/sch/i.html?_nkw=${encoded}`),
+    url: withEbayCampid(`https://www.ebay.com/sch/i.html?_nkw=${partsQ}`),
   });
 
-  // RockAuto — OEM part-number search is excellent for BMW
-  const rockQuery = oem ?? query;
+  const rockQuery = oem ?? partsSearchQuery(q);
   links.push({
     id: "rockauto",
     label: "RockAuto",
@@ -80,8 +96,7 @@ export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
     url: `https://www.rockauto.com/en/partsearch/?partnum=${encodeURIComponent(rockQuery)}`,
   });
 
-  // FCP Euro — lifetime warranty specialty BMW/Euro; Impact affiliate program
-  const fcpBase = `https://www.fcpeuro.com/search?q=${encoded}`;
+  const fcpBase = `https://www.fcpeuro.com/search?q=${partsQ}`;
   const fcpClick = process.env.NEXT_PUBLIC_FCP_EURO_CLICK_ID?.trim();
   links.push({
     id: "fcpeuro",

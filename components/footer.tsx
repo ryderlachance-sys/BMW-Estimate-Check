@@ -26,7 +26,7 @@ export function Footer() {
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-white">Product</p>
           <ul className="mt-4 space-y-2 text-sm">
-            <li><Link href="/upload" className="hover:text-white">Check an Estimate</Link></li>
+            <li><Link href="/upload" className="hover:text-white">Find cheaper parts</Link></li>
             <li><Link href="/catalog" className="hover:text-white">Parts Catalog</Link></li>
             <li><Link href="/dashboard" className="hover:text-white">Dashboard</Link></li>
             <li><Link href="/cart" className="hover:text-white">Cart</Link></li>

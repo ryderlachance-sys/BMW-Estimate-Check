@@ -79,7 +79,7 @@ export function Hero() {
             <Link href="/upload">
               <Button size="lg" className="w-full sm:w-auto">
                 <Upload className="size-5" />
-                Upload Your Estimate
+                Find cheaper parts
                 <ArrowRight className="size-5" />
               </Button>
             </Link>
@@ -333,7 +333,7 @@ export function FinalCta() {
         <Link href="/upload" className="mt-8 inline-block">
           <Button size="lg">
             <Upload className="size-5" />
-            Check My Estimate — Free
+            Find cheaper parts
           </Button>
         </Link>
       </motion.div>

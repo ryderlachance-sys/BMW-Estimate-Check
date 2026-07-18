@@ -6,7 +6,7 @@ import { Menu, ShieldCheck, ShoppingCart, User, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
-  { href: "/upload", label: "Check an Estimate" },
+  { href: "/upload", label: "Find cheaper parts" },
   { href: "/catalog", label: "Parts Catalog" },
   { href: "/dashboard", label: "Dashboard" },
 ];

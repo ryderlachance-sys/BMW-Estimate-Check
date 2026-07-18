@@ -2,28 +2,26 @@ import type { Metadata } from "next";
 import { UploadForm } from "@/components/upload-form";
 
 export const dynamic = "force-dynamic";
-/** Photo OCR + estimate parse can exceed default serverless limits. */
 export const maxDuration = 60;
 
 export const metadata: Metadata = {
-  title: "Check Your Estimate",
+  title: "Find Cheaper Parts",
   description:
-    "Upload your BMW repair estimate and get an instant price comparison against OEM and aftermarket parts.",
+    "Upload your BMW repair estimate and buy the same parts cheaper online.",
 };
 
 export default function UploadPage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16">
-      <div className="mx-auto max-w-2xl text-center">
+    <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 md:py-16">
+      <div className="text-center">
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-          Check your repair estimate
+          Find cheaper parts
         </h1>
-        <p className="mt-4 text-muted-foreground">
-          Tell us about your BMW, upload the estimate your shop gave you, and we&apos;ll
-          show you what those parts actually cost.
+        <p className="mt-3 text-muted-foreground">
+          Drop in your shop estimate. We show what to buy online — and where.
         </p>
       </div>
-      <div className="mt-12">
+      <div className="mt-10">
         <UploadForm />
       </div>
     </div>
