@@ -1,15 +1,10 @@
 /**
  * Affiliate / referral links for real retailers.
- *
- * How you make money: sign up for each program (free), put your IDs in .env,
- * and when a visitor clicks "Buy" and purchases, the retailer pays you a
- * commission. No inventory, no Stripe, no shipping.
  */
 
 export type AffiliateLink = {
   id: string;
   label: string;
-  /** Short blurb shown under the button */
   hint: string;
   url: string;
 };
@@ -19,6 +14,10 @@ export type PartAffiliateQuery = {
   name: string;
   oemNumbers?: string[] | null;
   oemPartNumber?: string | null;
+  /** Vehicle context makes Amazon/eBay find the right part for THIS car. */
+  year?: number | null;
+  model?: string | null;
+  engine?: string | null;
 };
 
 function firstOem(q: PartAffiliateQuery): string | null {
@@ -29,27 +28,43 @@ function firstOem(q: PartAffiliateQuery): string | null {
 }
 
 function cleanName(name: string): string {
-  return name.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  return name
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\bOEM\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function vehiclePhrase(q: PartAffiliateQuery): string {
+  const bits = [
+    q.year ? String(q.year) : null,
+    "BMW",
+    q.model ?? null,
+    q.engine ?? null,
+  ].filter(Boolean);
+  return bits.join(" ");
 }
 
 /**
- * Amazon search text. Bare 11-digit BMW OEMs often land on "product not found"
- * because Amazon treats them like bad ASINs — always include BMW + part name.
+ * Amazon: never put a bare 11-digit OEM in the query — Amazon treats long
+ * digit strings like ASINs and shows "product not found". Use year/model + name.
  */
 function amazonSearchQuery(q: PartAffiliateQuery): string {
-  const oem = firstOem(q);
   const name = cleanName(q.name);
-  const brand = q.brand && !/^genuine\s*bmw$/i.test(q.brand) ? q.brand : "BMW";
-  if (oem && name) return `BMW ${name} ${oem}`;
-  if (oem) return `BMW ${oem} auto part`;
-  return `${brand} ${name} BMW`.trim();
+  const vehicle = vehiclePhrase(q);
+  if (vehicle && name) return `${vehicle} ${name}`;
+  if (name) return `BMW ${name}`;
+  return vehicle || "BMW auto parts";
 }
 
-/** RockAuto / eBay / FCP: OEM alone is fine; fall back to brand + name. */
+/** RockAuto / eBay / FCP: OEM is best; else vehicle + name. */
 function partsSearchQuery(q: PartAffiliateQuery): string {
   const oem = firstOem(q);
   if (oem) return oem;
-  return `${q.brand} ${cleanName(q.name)}`.trim();
+  const name = cleanName(q.name);
+  const vehicle = vehiclePhrase(q);
+  if (vehicle && name) return `${vehicle} ${name}`;
+  return `BMW ${name}`.trim();
 }
 
 function withAmazonTag(url: string): string {
@@ -66,26 +81,32 @@ function withEbayCampid(url: string): string {
   return `${url}${sep}mkcid=1&mkrid=711-53200-19255-0&siteid=0&campid=${encodeURIComponent(campid)}&toolid=10001&mkevt=1`;
 }
 
-/** Build buy links for a catalog / matched part. Works with or without affiliate IDs. */
+/** Build buy links for a catalog / estimate part. */
 export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
   const oem = firstOem(q);
   const amazonQ = encodeURIComponent(amazonSearchQuery(q));
   const partsQ = encodeURIComponent(partsSearchQuery(q));
+  const ebayText = encodeURIComponent(
+    oem
+      ? `${vehiclePhrase(q)} ${oem}`.trim() || oem
+      : amazonSearchQuery(q)
+  );
+
   const links: AffiliateLink[] = [];
 
-  // Automotive department search — not /dp/OEM (that causes "product not found")
+  // Plain keyword search only — no /dp/, no i=automotive (both cause dead pages).
   links.push({
     id: "amazon",
     label: "Amazon",
     hint: "Fast shipping",
-    url: withAmazonTag(`https://www.amazon.com/s?k=${amazonQ}&i=automotive`),
+    url: withAmazonTag(`https://www.amazon.com/s?k=${amazonQ}`),
   });
 
   links.push({
     id: "ebay",
     label: "eBay",
     hint: "Used & new",
-    url: withEbayCampid(`https://www.ebay.com/sch/i.html?_nkw=${partsQ}`),
+    url: withEbayCampid(`https://www.ebay.com/sch/i.html?_nkw=${ebayText}`),
   });
 
   const rockQuery = oem ?? partsSearchQuery(q);

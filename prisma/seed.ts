@@ -405,6 +405,68 @@ const parts: SeedPart[] = [
     compatibleYears: [...N54_YEARS, 2014, 2015, 2016, 2017, 2018],
     price: 11.99,
   },
+
+  // ---------- F90 M5 (S63) ----------
+  {
+    sku: "BMW-34116860017",
+    brand: "Genuine BMW",
+    name: "Front Brake Pad Set (F90 M5)",
+    description:
+      "Genuine BMW front brake pad set for F90 M5 / M5 Competition with iron brakes. Includes wear sensors.",
+    category: "Brakes",
+    oemNumbers: ["34116860017", "34116855152"],
+    compatibleModels: ["M5"],
+    compatibleYears: [2018, 2019, 2020, 2021, 2022, 2023],
+    price: 289.99,
+  },
+  {
+    sku: "BRE-34116855156",
+    brand: "Brembo",
+    name: "Front Brake Rotor Pair (F90 M5)",
+    description:
+      "Brembo OE-spec front rotors for F90 M5. Sold as a pair. Confirm iron vs carbon-ceramic before ordering.",
+    category: "Brakes",
+    oemNumbers: ["34116855156", "34116855155"],
+    compatibleModels: ["M5"],
+    compatibleYears: [2018, 2019, 2020, 2021, 2022, 2023],
+    price: 459.99,
+  },
+  {
+    sku: "NGK-12120040570",
+    brand: "NGK",
+    name: "Spark Plug (S63 M5/M8)",
+    description:
+      "NGK OE-spec spark plug for the S63 twin-turbo V8 in F90 M5 and F92 M8. Sold individually — M5 needs 8.",
+    category: "Ignition",
+    oemNumbers: ["12120040570", "12120040569"],
+    compatibleModels: ["M5", "M8"],
+    compatibleYears: [2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    price: 18.99,
+  },
+  {
+    sku: "ELR-11127570292",
+    brand: "Elring",
+    name: "Valve Cover Gasket Set (S63)",
+    description:
+      "Elring valve cover gasket set for S63 engines in F90 M5. Includes spark plug tube seals where applicable.",
+    category: "Gaskets & Seals",
+    oemNumbers: ["11127570292", "11128637801"],
+    compatibleModels: ["M5", "M8"],
+    compatibleYears: [2018, 2019, 2020, 2021, 2022, 2023],
+    price: 129.99,
+  },
+  {
+    sku: "BMW-11427512300",
+    brand: "Genuine BMW",
+    name: "Oil Filter Housing Gasket Set (S63)",
+    description:
+      "Genuine BMW oil filter housing gasket set for S63 V8. Common leak repair on F90 M5.",
+    category: "Gaskets & Seals",
+    oemNumbers: ["11427512300", "11428637799"],
+    compatibleModels: ["M5", "M8"],
+    compatibleYears: [2018, 2019, 2020, 2021, 2022, 2023],
+    price: 42.99,
+  },
 ];
 
 const demoVehicles = [

@@ -117,6 +117,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             name: c.catalogPart.name,
             oemNumbers: c.catalogPart.oemNumbers,
             oemPartNumber: c.estimateItem?.oemPartNumber,
+            year: estimate.vehicle.year,
+            model: estimate.vehicle.model,
+            engine: estimate.vehicle.engine,
           });
           const qty = c.estimateItem?.quantity ?? 1;
           return (
@@ -131,10 +134,10 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                     {qty > 1 ? ` × ${qty}` : ""}
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
+                    Fits {estimate.vehicle.year} BMW {estimate.vehicle.model}
+                    {estimate.vehicle.engine ? ` · ${estimate.vehicle.engine}` : ""}
+                    {" · "}
                     {c.catalogPart.brand}
-                    {c.estimateItem?.description
-                      ? ` · Shop wrote “${c.estimateItem.description.slice(0, 48)}${c.estimateItem.description.length > 48 ? "…" : ""}”`
-                      : ""}
                   </p>
                 </div>
                 <div className="text-right">
@@ -169,6 +172,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             brand: "BMW",
             name: item.description,
             oemPartNumber: item.oemPartNumber,
+            year: estimate.vehicle.year,
+            model: estimate.vehicle.model,
+            engine: estimate.vehicle.engine,
           });
           return (
             <article
@@ -179,7 +185,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 <div>
                   <h2 className="text-lg font-bold leading-snug">{item.description}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    No catalog match — search retailers with this name
+                    Search for your {estimate.vehicle.year} BMW {estimate.vehicle.model}
+                    {item.oemPartNumber ? ` · OEM ${item.oemPartNumber}` : ""}
                   </p>
                 </div>
                 <div className="text-right">

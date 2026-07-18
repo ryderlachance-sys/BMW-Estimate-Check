@@ -196,6 +196,19 @@ export async function processEstimate(estimateId: string): Promise<void> {
           status: "PARSED",
         },
       }),
+      // Prefer vehicle details printed on the estimate (exact fitment).
+      ...(result.vehicle.model || result.vehicle.engine || result.vehicle.year
+        ? [
+            db.vehicle.update({
+              where: { id: estimate.vehicleId },
+              data: {
+                ...(result.vehicle.year ? { year: result.vehicle.year } : {}),
+                ...(result.vehicle.model ? { model: result.vehicle.model } : {}),
+                ...(result.vehicle.engine ? { engine: result.vehicle.engine } : {}),
+              },
+            }),
+          ]
+        : []),
     ]);
 
     await buildComparisons(estimateId);

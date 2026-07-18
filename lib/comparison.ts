@@ -51,13 +51,16 @@ const SYNONYMS: Record<string, string> = {
   "drive belt": "serpentine belt",
   "wtr pump": "water pump",
   "ctrl arm": "control arm",
+  plugs: "plug",
+  gaskets: "gasket",
+  seals: "seal",
 };
 
 const STOP_WORDS = new Set([
   "the", "a", "an", "and", "or", "of", "for", "with", "new", "replace",
-  "replacement", "install", "installation", "left", "right", "front", "rear",
-  "lh", "rh", "l", "r", "bmw", "oem", "kit", "set", "assembly", "assy", "each",
-  "pair", "qty",
+  "replacement", "install", "installation",
+  "lh", "rh", "l", "r", "bmw", "oem", "kit", "assembly", "assy", "each",
+  "pair", "qty", "ea", "ee",
 ]);
 
 export function normalizeDescription(input: string): string[] {
@@ -69,8 +72,6 @@ export function normalizeDescription(input: string): string[] {
     text
       .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
-      // Drop stop words, pure numbers, and 2-char alphanumeric fragments —
-      // OCR noise like "319", "e5", "s2" would otherwise dilute match scores.
       .filter(
         (t) =>
           t.length > 1 &&
@@ -83,9 +84,8 @@ export function normalizeDescription(input: string): string[] {
 
 /**
  * Token-overlap similarity between an estimate line and a catalog part.
- * The part *name* is weighted heavier than its long description, so
- * "water pump" prefers the pump itself over a thermostat whose description
- * merely mentions the pump.
+ * Name/category must share tokens — a gasket that merely *mentions* spark
+ * plugs in its description must not beat an actual spark plug part.
  */
 export function similarityScore(itemDescription: string, part: CatalogPart): number {
   const itemTokens = new Set(normalizeDescription(itemDescription));
@@ -103,14 +103,25 @@ export function similarityScore(itemDescription: string, part: CatalogPart): num
     if (allTokens.has(t)) allOverlap++;
   }
 
-  // Overlap is measured against the estimate line's tokens (shorter, specific).
-  return 0.6 * (allOverlap / itemTokens.size) + 0.4 * (nameOverlap / itemTokens.size);
+  const nameScore = nameOverlap / itemTokens.size;
+  const allScore = allOverlap / itemTokens.size;
+  // Description-only hits are almost worthless for matching.
+  if (nameOverlap === 0) return allScore * 0.15;
+  return 0.75 * nameScore + 0.25 * allScore;
 }
 
 export function normalizeOemNumber(value: string | null | undefined): string | null {
   if (!value) return null;
   const digits = value.replace(/[^0-9]/g, "");
   return digits.length >= 7 ? digits : null;
+}
+
+function extractEngineCodes(text: string): string[] {
+  const codes = new Set<string>();
+  for (const m of text.matchAll(/\b([NBS]\d{2}|S55|S58|S63|B46|B48|B58)[A-Z]?\b/gi)) {
+    codes.add(m[1].toUpperCase());
+  }
+  return [...codes];
 }
 
 function isCompatible(part: CatalogPart, vehicle: Vehicle): boolean {
@@ -123,10 +134,24 @@ function isCompatible(part: CatalogPart, vehicle: Vehicle): boolean {
     );
   const yearOk =
     part.compatibleYears.length === 0 || part.compatibleYears.includes(vehicle.year);
+
+  // If the vehicle has an engine and the catalog part is labeled for other
+  // engines only, reject — never sell N54 plugs for an S63 M5.
+  if (vehicle.engine) {
+    const partEngines = extractEngineCodes(`${part.name} ${part.description}`);
+    if (partEngines.length > 0) {
+      const vehicleEngine = vehicle.engine.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const engineOk = partEngines.some(
+        (e) => vehicleEngine.startsWith(e) || e.startsWith(vehicleEngine.slice(0, 3))
+      );
+      if (!engineOk) return false;
+    }
+  }
+
   return modelOk && yearOk;
 }
 
-const MIN_SEMANTIC_SCORE = 0.34;
+const MIN_SEMANTIC_SCORE = 0.45;
 
 export interface MatchResult {
   item: EstimateItem;
@@ -137,10 +162,9 @@ export interface MatchResult {
 
 /**
  * Matching algorithm:
- * 1. Exact OEM part-number match against the catalog.
- * 2. Otherwise, semantic (token-overlap) similarity on descriptions.
- * 3. Only parts compatible with the vehicle's model/year are considered.
- * 4. Ties broken by brand quality rank, then lower price.
+ * 1. Exact OEM part-number match — only if that part fits this vehicle.
+ * 2. Otherwise, semantic similarity within compatible parts.
+ * 3. Wrong-car OEM hits are ignored (search retailers instead of a bad match).
  */
 export async function matchEstimateItems(
   items: EstimateItem[],
@@ -156,10 +180,12 @@ export async function matchEstimateItems(
   for (const item of items) {
     const oem = normalizeOemNumber(item.oemPartNumber);
 
-    // 1) OEM number match — search the full catalog (number is authoritative).
+    // 1) OEM number match — must fit this car (never N54 plugs on an M5).
     if (oem) {
-      const oemMatches = catalog.filter((p) =>
-        p.oemNumbers.some((n) => normalizeOemNumber(n) === oem)
+      const oemMatches = catalog.filter(
+        (p) =>
+          p.oemNumbers.some((n) => normalizeOemNumber(n) === oem) &&
+          isCompatible(p, vehicle)
       );
       if (oemMatches.length > 0) {
         const best = oemMatches.sort(
