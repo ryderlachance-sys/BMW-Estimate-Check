@@ -147,6 +147,16 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
           <BuyAllAtRetailersButton urls={buyAllUrls} count={comparisons.length} />
           <AddAllToCartButton estimateId={estimate.id} count={comparisons.length} />
+          {comparisons.length === 0 && (
+            <div className="flex flex-wrap gap-2">
+              <RetryParseButton estimateId={estimate.id} />
+              <Link href="/upload">
+                <Button variant="outline" size="sm">
+                  Upload a clearer photo
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import "server-only";
 import { ParsedEstimateSchema, type ParsedEstimate } from "./schema";
+import { repairOcrText, sanitizeGrandTotal } from "@/lib/ocr/repair";
 
 /**
  * Zero-cost estimate parser: extracts parts, labor, and totals from estimate
@@ -13,8 +14,10 @@ const MONEY_RE = /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)|(?<![\d.])(\d{1,3}(?:,\d
 // BMW OEM part numbers: 11 digits, often grouped "31 12 6 852 991".
 const OEM_RE = /\b(\d{2})[\s.-]?(\d{2})[\s.-]?(\d)[\s.-]?(\d{3})[\s.-]?(\d{3})\b/;
 
-const LABOR_RE = /\b(labor|labour|diagnos\w*|r\s*&\s*r|remove\s+(and|&)\s+replace|install(ation)?\s+(fee|charge)|shop\s+time)\b/i;
-const FEE_RE = /\b(shop\s+suppl\w*|hazmat|disposal|environmental|misc(ellaneous)?\s+charge|fee)\b/i;
+const LABOR_RE =
+  /\b(labor|labour|diagnos\w*|misfire|r\s*&\s*r|remove\s+(and|&)\s+replace|install(ation)?\s+(fee|charge)|shop\s+time)\b/i;
+const FEE_RE =
+  /\b(shop\s+suppl\w*|supplies|hazmat|disposal|environmental|misc(ellaneous)?\s+charge|fee)\b/i;
 const TAX_RE = /\b(tax|hst|gst|vat)\b/i;
 const TOTAL_RE = /\b(grand\s+total|total\s+(estimate|due|amount)|estimate\s+total|\btotal\b)\b/i;
 const SUBTOTAL_RE = /\bsub\s*-?\s*total\b/i;
@@ -70,14 +73,7 @@ function cleanDescription(line: string): string {
 
 /** Correct common OCR character confusions before parsing. */
 function normalizeOcrArtifacts(text: string): string {
-  return (
-    text
-      // Currency symbol misreads: £310.00 / S260.00 → $310.00 / $260.00
-      .replace(/£/g, "$")
-      .replace(/\bS(?=\d{1,3}(?:[,\d]*)\.\d{2}\b)/g, "$")
-      // € is almost always a misread 6 on US invoices (e.g. "€07" in "607")
-      .replace(/€/g, "6")
-  );
+  return repairOcrText(text);
 }
 
 export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
@@ -118,7 +114,11 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
   const yearMatch = vehicleYearMatch ?? fullText.match(YEAR_RE);
   if (yearMatch) year = Number(yearMatch[1]);
   const modelMatch = fullText.match(MODEL_RE);
-  if (modelMatch) model = modelMatch[1].replace(/\s+/g, "").toUpperCase().replace(/^(\d{3})([A-Z]+)$/, (_, d, s) => d + s.toLowerCase());
+  if (modelMatch)
+    model = modelMatch[1]
+      .replace(/\s+/g, "")
+      .toUpperCase()
+      .replace(/^(\d{3})([A-Z]+)$/, (_, d, s) => d + s.toLowerCase());
   const engineMatch = fullText.match(ENGINE_RE);
   if (engineMatch) engine = engineMatch[0].toUpperCase();
 
@@ -155,6 +155,9 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
       oemPartNumber: extractOem(line),
     });
   }
+
+  const partsSum = parts.reduce((s, p) => s + p.mechanicPrice, 0);
+  totalEstimate = sanitizeGrandTotal(totalEstimate, partsSum, laborTotal);
 
   return ParsedEstimateSchema.parse({
     shopName,

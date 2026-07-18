@@ -10,6 +10,7 @@ import { extractTextFromFile, getImageForAi } from "@/lib/ai/extract-text";
 import { hasAiConfigured, parseEstimate } from "@/lib/ai/parse-estimate";
 import { parseEstimateHeuristically } from "@/lib/ai/heuristic-parser";
 import type { ParsedEstimate } from "@/lib/ai/schema";
+import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
 
 const CreateEstimateSchema = z.object({
@@ -123,17 +124,32 @@ export async function processEstimate(estimateId: string): Promise<void> {
 
   try {
     const isImage = estimate.originalFileType.startsWith("image/");
-    let text: string | null = estimate.extractedText;
+    let text: string | null = estimate.extractedText
+      ? repairOcrText(estimate.extractedText)
+      : null;
 
-    // Prefer browser OCR text for photos (works on Vercel). Fall back to
-    // server extraction for PDFs or when client text wasn't provided.
-    if (!text || text.trim().length < 10) {
-      const extracted = await extractTextFromFile(
-        estimate.originalFileUrl,
-        estimate.originalFileType
-      );
-      text = extracted.text;
+    const clientScore = text ? ocrQualityScore(text) : 0;
+    // Prefer solid browser OCR. If it's weak (or missing), try server extraction
+    // (works locally; may fail on Vercel — then we keep client text).
+    if (!text || text.trim().length < 10 || (isImage && clientScore < 40)) {
+      try {
+        const extracted = await extractTextFromFile(
+          estimate.originalFileUrl,
+          estimate.originalFileType
+        );
+        const serverText = extracted.text ? repairOcrText(extracted.text) : null;
+        if (
+          serverText &&
+          (!text || ocrQualityScore(serverText) > clientScore)
+        ) {
+          text = serverText;
+        }
+      } catch {
+        // Keep client OCR if server OCR isn't available.
+      }
     }
+
+    if (text) text = repairOcrText(text);
 
     let result: ParsedEstimate;
     if (hasAiConfigured()) {
@@ -196,7 +212,7 @@ export async function processEstimate(estimateId: string): Promise<void> {
   revalidatePath(`/results/${estimateId}`);
 }
 
-/** Re-run AI parsing for a failed estimate. */
+/** Re-run parsing for a failed or weak estimate (applies latest OCR repairs). */
 export async function retryEstimate(estimateId: string): Promise<void> {
   const user = await ensureUser();
   const estimate = await db.estimate.findUniqueOrThrow({ where: { id: estimateId } });

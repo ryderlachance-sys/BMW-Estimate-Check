@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { CloudUpload, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 
 export interface UploadedFile {
   url: string;
@@ -12,12 +13,67 @@ export interface UploadedFile {
   extractedText?: string;
 }
 
+/** Upscale + grayscale + contrast so small estimate text is readable by tesseract. */
+async function preprocessImageForOcr(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.max(2, 2400 / Math.max(bitmap.width, 1));
+    const width = Math.min(Math.round(bitmap.width * scale), 4800);
+    const height = Math.round(bitmap.height * (width / bitmap.width));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) throw new Error("Canvas unavailable");
+    ctx.drawImage(bitmap, 0, 0, width, height);
+
+    const image = ctx.getImageData(0, 0, width, height);
+    const data = image.data;
+    let min = 255;
+    let max = 0;
+    const gray = new Float32Array(data.length / 4);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      gray[p] = g;
+      if (g < min) min = g;
+      if (g > max) max = g;
+    }
+    const range = Math.max(max - min, 1);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      const normalized = ((gray[p] - min) / range) * 255;
+      const contrasted = ((normalized / 255 - 0.5) * 1.35 + 0.5) * 255;
+      const v = Math.min(255, Math.max(0, contrasted));
+      data[i] = data[i + 1] = data[i + 2] = v;
+    }
+    ctx.putImageData(image, 0, 0);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+    if (!blob) throw new Error("Image preprocess failed");
+    return blob;
+  } finally {
+    bitmap.close();
+  }
+}
+
 async function ocrInBrowser(file: File): Promise<string> {
   const { createWorker } = await import("tesseract.js");
+  const processed = await preprocessImageForOcr(file);
   const worker = await createWorker("eng");
   try {
-    const { data } = await worker.recognize(file);
-    return data.text;
+    let best = "";
+    let bestScore = -1;
+    for (const psm of ["4", "6"] as const) {
+      await worker.setParameters({ tessedit_pageseg_mode: psm });
+      const { data } = await worker.recognize(processed);
+      const score = ocrQualityScore(data.text);
+      if (score > bestScore) {
+        best = data.text;
+        bestScore = score;
+      }
+    }
+    return repairOcrText(best);
   } finally {
     await worker.terminate();
   }

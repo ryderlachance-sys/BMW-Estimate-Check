@@ -1,6 +1,7 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 
 /** Reads an uploaded estimate: local files from public/, remote URLs via fetch. */
 async function readFileBuffer(fileUrl: string): Promise<Buffer> {
@@ -69,14 +70,6 @@ async function preprocessForOcr(buffer: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
-/** Rough quality score for OCR output: count of money-like and part-number-like tokens. */
-function ocrQualityScore(text: string): number {
-  const money = (text.match(/\$?\d{1,3}(?:,\d{3})*\.\d{2}\b/g) ?? []).length;
-  const partNumbers = (text.match(/\b\d{2}[\s.-]?\d{2}[\s.-]?\d[\s.-]?\d{3}[\s.-]?\d{3}\b/g) ?? []).length;
-  const words = (text.match(/\b[a-z]{4,}\b/gi) ?? []).length;
-  return money * 4 + partNumbers * 6 + words;
-}
-
 /**
  * Free local OCR for photos/screenshots — no external service required.
  * Runs two page-segmentation modes and keeps the better result, since
@@ -99,7 +92,7 @@ async function ocrImage(buffer: Buffer): Promise<string> {
         bestScore = score;
       }
     }
-    return best;
+    return repairOcrText(best);
   } finally {
     await worker.terminate();
   }

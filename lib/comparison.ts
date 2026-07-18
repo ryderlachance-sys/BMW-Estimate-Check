@@ -43,6 +43,7 @@ const SYNONYMS: Record<string, string> = {
   rotors: "rotor",
   pads: "pad",
   "disc brake": "brake",
+  brave: "brake",
   "valve cover gskt": "valve cover gasket",
   "vcg": "valve cover gasket",
   "t-stat": "thermostat",
