@@ -8,9 +8,22 @@ export interface UploadedFile {
   url: string;
   type: string;
   name: string;
+  /** Browser OCR text for photos — required on Vercel where server OCR can't load WASM. */
+  extractedText?: string;
 }
 
-/** Drag-and-drop uploader backed by the local /api/upload route. */
+async function ocrInBrowser(file: File): Promise<string> {
+  const { createWorker } = await import("tesseract.js");
+  const worker = await createWorker("eng");
+  try {
+    const { data } = await worker.recognize(file);
+    return data.text;
+  } finally {
+    await worker.terminate();
+  }
+}
+
+/** Drag-and-drop uploader. Photos are OCR'd in the browser before submit. */
 export function EstimateDropzone({
   onUploaded,
   onError,
@@ -21,10 +34,12 @@ export function EstimateDropzone({
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState("Uploading…");
 
   async function handleFile(file: File | undefined | null) {
     if (!file || uploading) return;
     setUploading(true);
+    setStatus("Uploading…");
     try {
       const body = new FormData();
       body.append("file", file);
@@ -34,11 +49,30 @@ export function EstimateDropzone({
         onError(data.error ?? "Upload failed");
         return;
       }
-      onUploaded({ url: data.url, type: data.type, name: file.name });
+
+      let extractedText: string | undefined;
+      if (file.type.startsWith("image/")) {
+        setStatus("Reading text from photo…");
+        extractedText = await ocrInBrowser(file);
+        if (!extractedText || extractedText.trim().length < 10) {
+          onError(
+            "Couldn't read text from that photo. Try a clearer image or upload the PDF."
+          );
+          return;
+        }
+      }
+
+      onUploaded({
+        url: data.url,
+        type: data.type,
+        name: file.name,
+        extractedText,
+      });
     } catch {
       onError("Upload failed — please try again.");
     } finally {
       setUploading(false);
+      setStatus("Uploading…");
     }
   }
 
@@ -69,7 +103,7 @@ export function EstimateDropzone({
         <CloudUpload className="size-9 text-primary" />
       )}
       <span className="font-semibold">
-        {uploading ? "Uploading…" : "Drop your estimate here, or click to browse"}
+        {uploading ? status : "Drop your estimate here, or click to browse"}
       </span>
       <span className="text-xs text-muted-foreground">
         PDF, PNG, JPG, or WebP — up to 16 MB

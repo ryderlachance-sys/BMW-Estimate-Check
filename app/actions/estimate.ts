@@ -29,6 +29,7 @@ const CreateEstimateSchema = z.object({
       "Invalid uploaded file reference"
     ),
   fileType: z.string().min(1, "Please upload your estimate first"),
+  extractedText: z.string().optional(),
 });
 
 export type CreateEstimateState = { error?: string } | null;
@@ -47,11 +48,19 @@ export async function createEstimate(
     vin: formData.get("vin") || undefined,
     fileUrl: formData.get("fileUrl"),
     fileType: formData.get("fileType"),
+    extractedText: String(formData.get("extractedText") ?? "") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message ?? "Invalid input" };
   }
   const data = parsed.data;
+
+  if (data.fileType.startsWith("image/") && !(data.extractedText && data.extractedText.trim().length > 10)) {
+    return {
+      error:
+        "Could not read text from that photo. Try a clearer image, or upload the estimate as a PDF.",
+    };
+  }
 
   const vehicle = await db.vehicle.create({
     data: {
@@ -71,6 +80,7 @@ export async function createEstimate(
       vehicleId: vehicle.id,
       originalFileUrl: data.fileUrl,
       originalFileType: data.fileType,
+      extractedText: data.extractedText ?? null,
       status: "PROCESSING",
     },
   });
@@ -112,22 +122,28 @@ export async function processEstimate(estimateId: string): Promise<void> {
   });
 
   try {
-    const { text, isImage } = await extractTextFromFile(
-      estimate.originalFileUrl,
-      estimate.originalFileType
-    );
+    const isImage = estimate.originalFileType.startsWith("image/");
+    let text: string | null = estimate.extractedText;
+
+    // Prefer browser OCR text for photos (works on Vercel). Fall back to
+    // server extraction for PDFs or when client text wasn't provided.
+    if (!text || text.trim().length < 10) {
+      const extracted = await extractTextFromFile(
+        estimate.originalFileUrl,
+        estimate.originalFileType
+      );
+      text = extracted.text;
+    }
 
     let result: ParsedEstimate;
     if (hasAiConfigured()) {
       try {
         result = await parseEstimate(
-          isImage
+          isImage && !text
             ? { imageUrl: await getImageForAi(estimate.originalFileUrl, estimate.originalFileType) }
             : { text: text ?? "" }
         );
       } catch {
-        // AI provider unavailable — fall back to the free built-in parser
-        // (PDF text or OCR text) rather than failing the whole estimate.
         if (!text) throw new Error("Could not read any text from this file.");
         result = parseEstimateHeuristically(text);
       }

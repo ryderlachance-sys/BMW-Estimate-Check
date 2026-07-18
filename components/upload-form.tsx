@@ -132,6 +132,7 @@ export function UploadForm() {
 
           <input type="hidden" name="fileUrl" value={file?.url ?? ""} />
           <input type="hidden" name="fileType" value={file?.type ?? ""} />
+          <input type="hidden" name="extractedText" value={file?.extractedText ?? ""} />
 
           {state?.error && (
             <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-destructive">
