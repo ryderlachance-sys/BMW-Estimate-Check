@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -70,13 +71,19 @@ export async function createEstimate(
       vehicleId: vehicle.id,
       originalFileUrl: data.fileUrl,
       originalFileType: data.fileType,
-      status: "UPLOADED",
+      status: "PROCESSING",
     },
   });
 
-  // Parse synchronously so the results page is ready on redirect.
-  // Failures are recorded on the estimate and shown on the results page.
-  await processEstimate(estimate.id);
+  // Parse in the background so the upload form can redirect immediately.
+  // Photo OCR is too slow to finish inside the form POST on Vercel.
+  after(async () => {
+    try {
+      await processEstimate(estimate.id);
+    } catch (err) {
+      console.error("background processEstimate failed", err);
+    }
+  });
 
   redirect(`/results/${estimate.id}`);
 }
