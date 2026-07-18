@@ -112,47 +112,65 @@ export function PartEditor({
   const [pending, startTransition] = useTransition();
   const [newPrice, setNewPrice] = useState(price.toFixed(2));
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const parsedPrice = Number(newPrice);
+  const priceValid = Number.isFinite(parsedPrice) && parsedPrice > 0;
 
   return (
-    <div className="flex items-center gap-2">
-      <Input
-        type="number"
-        step="0.01"
-        min="0"
-        value={newPrice}
-        onChange={(e) => setNewPrice(e.target.value)}
-        className="h-8 w-24 text-xs tabular-nums"
-        aria-label="Price"
-      />
-      <Select
-        value={stockStatus}
-        disabled={pending}
-        className="h-8 w-36 text-xs"
-        onChange={(e) =>
-          startTransition(() =>
-            updateCatalogPart(partId, { stockStatus: e.target.value as StockStatus })
-          )
-        }
-      >
-        {STOCK_STATUSES.map((s) => (
-          <option key={s} value={s}>{s.replaceAll("_", " ")}</option>
-        ))}
-      </Select>
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-8"
-        disabled={pending || Number(newPrice) === price}
-        onClick={() =>
-          startTransition(async () => {
-            await updateCatalogPart(partId, { price: Number(newPrice) });
-            setSaved(true);
-            setTimeout(() => setSaved(false), 1500);
-          })
-        }
-      >
-        {pending ? <Loader2 className="size-3.5 animate-spin" /> : saved ? <Check className="size-3.5" /> : "Save"}
-      </Button>
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          step="0.01"
+          min="0.01"
+          value={newPrice}
+          onChange={(e) => {
+            setNewPrice(e.target.value);
+            setError(null);
+          }}
+          className="h-8 w-24 text-xs tabular-nums"
+          aria-label="Price"
+        />
+        <Select
+          value={stockStatus}
+          disabled={pending}
+          className="h-8 w-36 text-xs"
+          onChange={(e) =>
+            startTransition(() =>
+              updateCatalogPart(partId, { stockStatus: e.target.value as StockStatus })
+            )
+          }
+        >
+          {STOCK_STATUSES.map((s) => (
+            <option key={s} value={s}>{s.replaceAll("_", " ")}</option>
+          ))}
+        </Select>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8"
+          disabled={pending || !priceValid || parsedPrice === price}
+          onClick={() => {
+            if (!priceValid) {
+              setError("Enter a price above $0");
+              return;
+            }
+            startTransition(async () => {
+              try {
+                await updateCatalogPart(partId, { price: parsedPrice });
+                setSaved(true);
+                setError(null);
+                setTimeout(() => setSaved(false), 1500);
+              } catch {
+                setError("Could not save price");
+              }
+            });
+          }}
+        >
+          {pending ? <Loader2 className="size-3.5 animate-spin" /> : saved ? <Check className="size-3.5" /> : "Save"}
+        </Button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

@@ -134,10 +134,13 @@ export async function updateCatalogPart(
   data: { price?: number; stockStatus?: StockStatus }
 ): Promise<void> {
   await requireAdmin();
+  if (data.price !== undefined && !(data.price > 0)) {
+    throw new Error("Price must be greater than 0");
+  }
   await db.catalogPart.update({
     where: { id: partId },
     data: {
-      ...(data.price !== undefined && data.price > 0 ? { price: round2(data.price) } : {}),
+      ...(data.price !== undefined ? { price: round2(data.price) } : {}),
       ...(data.stockStatus ? { stockStatus: data.stockStatus } : {}),
     },
   });

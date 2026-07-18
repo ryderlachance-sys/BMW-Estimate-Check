@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AffiliateLink } from "@/lib/affiliates";
@@ -37,7 +38,10 @@ export function AffiliateBuyButtons({
   );
 }
 
-/** Primary money CTA: open every matched part at the cheapest-style retailer. */
+/**
+ * Bulk buy CTA. Browsers block multi-tab window.open after the first,
+ * so we open the first link immediately and list the rest for one-click opens.
+ */
 export function BuyAllAtRetailersButton({
   urls,
   count,
@@ -45,20 +49,52 @@ export function BuyAllAtRetailersButton({
   urls: string[];
   count: number;
 }) {
+  const [showList, setShowList] = useState(false);
+
+  if (urls.length === 0) {
+    return (
+      <Button size="lg" disabled>
+        <ExternalLink className="size-5" />
+        Buy all cheaper parts online
+      </Button>
+    );
+  }
+
+  if (!showList) {
+    return (
+      <Button
+        size="lg"
+        onClick={() => {
+          window.open(urls[0], "_blank", "noopener,noreferrer");
+          setShowList(true);
+        }}
+      >
+        <ExternalLink className="size-5" />
+        Buy all {count} cheaper parts online
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      size="lg"
-      disabled={urls.length === 0}
-      onClick={() => {
-        // Open one tab per part. Browsers may block extras until the first click —
-        // RockAuto (usually cheapest) is first so it always opens.
-        for (const url of urls) {
-          window.open(url, "_blank", "noopener,noreferrer");
-        }
-      }}
-    >
-      <ExternalLink className="size-5" />
-      Buy all {count} cheaper parts online
-    </Button>
+    <div className="w-full max-w-lg space-y-3 rounded-xl border bg-card p-4 text-left">
+      <p className="text-sm font-medium">
+        Opened part 1 of {urls.length}. Click each remaining link (browsers block opening many tabs at once):
+      </p>
+      <ol className="space-y-2">
+        {urls.map((url, i) => (
+          <li key={`${url}-${i}`}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Part {i + 1}
+              <ExternalLink className="size-3.5" />
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }

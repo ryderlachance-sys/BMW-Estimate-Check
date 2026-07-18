@@ -68,6 +68,12 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           Reading every line item and matching parts to our catalog. This usually
           takes a few seconds.
         </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <RetryParseButton estimateId={estimate.id} />
+          <Link href="/upload">
+            <Button variant="outline">Upload a different file</Button>
+          </Link>
+        </div>
       </div>
     );
   }

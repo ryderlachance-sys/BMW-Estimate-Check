@@ -39,7 +39,7 @@ const estimateBadge: Record<string, "secondary" | "success" | "warning" | "destr
 export default async function DashboardPage() {
   const user = await ensureUser();
 
-  const [orders, vehicles, estimates, mechanics] = await Promise.all([
+  const [orders, vehicles, estimates, mechanics, cartCount] = await Promise.all([
     db.order.findMany({
       where: { userId: user.id },
       include: { items: { include: { catalogPart: true } } },
@@ -55,6 +55,7 @@ export default async function DashboardPage() {
       where: { userId: user.id },
       orderBy: [{ isFavorite: "desc" }, { updatedAt: "desc" }],
     }),
+    db.cartItem.count({ where: { userId: user.id } }),
   ]);
 
   return (
@@ -243,11 +244,19 @@ export default async function DashboardPage() {
                 </div>
               ))}
               {mechanics.length > 0 && (
-                <Link href="/checkout">
-                  <Button variant="outline" size="sm" className="w-full">
-                    Use at checkout
-                  </Button>
-                </Link>
+                cartCount > 0 ? (
+                  <Link href="/checkout">
+                    <Button variant="outline" size="sm" className="w-full">
+                      Use at checkout
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/upload">
+                    <Button variant="outline" size="sm" className="w-full">
+                      Add parts first (check estimate)
+                    </Button>
+                  </Link>
+                )
               )}
             </CardContent>
           </Card>
