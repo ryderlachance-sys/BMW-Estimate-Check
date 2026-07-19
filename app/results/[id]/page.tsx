@@ -11,6 +11,7 @@ import {
   ProcessingPoller,
   RetryParseButton,
 } from "@/components/results-actions";
+import { ConfirmVehicleForm } from "@/components/confirm-vehicle-form";
 import { bestBuyForPart } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,30 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
   }
 
   if (estimate.status === "FAILED") {
+    const needsVehicle =
+      estimate.errorMessage === "NEED_VEHICLE" ||
+      estimate.vehicle.model.toLowerCase() === "pending";
+    // Older failed uploads that only lacked vehicle info — offer the form too
+    const vehicleMissingMsg =
+      estimate.errorMessage?.toLowerCase().includes("year/model") ||
+      estimate.errorMessage?.toLowerCase().includes("couldn't find your bmw");
+
+    if (needsVehicle || vehicleMissingMsg) {
+      return (
+        <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
+          <Car className="mx-auto size-10 text-primary" />
+          <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Tell us your BMW</h1>
+          <ConfirmVehicleForm estimateId={estimate.id} />
+          <div className="mt-6 flex justify-center gap-3">
+            <RetryParseButton estimateId={estimate.id} />
+            <Link href="/upload">
+              <Button variant="outline">Upload again</Button>
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-28 text-center">
         <AlertTriangle className="size-12 text-destructive" />
@@ -66,6 +91,20 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
     );
   }
 
+  const needsVehicle =
+    estimate.errorMessage === "NEED_VEHICLE" ||
+    estimate.vehicle.model.toLowerCase() === "pending";
+
+  if (needsVehicle) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
+        <Car className="mx-auto size-10 text-primary" />
+        <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Tell us your BMW</h1>
+        <ConfirmVehicleForm estimateId={estimate.id} />
+      </div>
+    );
+  }
+
   const comparisons = estimate.comparisons.filter((c) => c.savings >= 0 || c.ourPrice > 0);
   const totalSavings = round2(comparisons.reduce((s, c) => s + Math.max(0, c.savings), 0));
   const shopParts = round2(
@@ -79,6 +118,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
   }`;
 
   if (comparisons.length === 0) {
+    const laborOnly =
+      estimate.errorMessage === "NO_PARTS" || estimate.items.length === 0;
+    const catalogHref = `/catalog?model=${encodeURIComponent(estimate.vehicle.model)}&year=${estimate.vehicle.year}`;
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
         <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
@@ -86,15 +128,20 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           {carLabel}
         </p>
         <h1 className="mt-4 text-2xl font-extrabold tracking-tight">
-          We couldn&apos;t match those parts yet
+          {laborOnly ? "No parts on this estimate" : "We couldn't match those parts yet"}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Upload a clearer photo or the shop PDF so we can show your savings.
+          {laborOnly
+            ? "This looks like labor or service only (no replacement parts listed). Browse the catalog for your BMW, or upload an estimate that lists parts."
+            : "Upload a clearer photo or the shop PDF so we can show your savings."}
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link href={catalogHref}>
+            <Button>Browse {estimate.vehicle.model} parts</Button>
+          </Link>
           <RetryParseButton estimateId={estimate.id} />
           <Link href="/upload">
-            <Button>Upload again</Button>
+            <Button variant="outline">Upload again</Button>
           </Link>
         </div>
       </div>

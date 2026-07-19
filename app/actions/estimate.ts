@@ -155,26 +155,18 @@ export async function processEstimate(estimateId: string): Promise<void> {
       throw new Error("Could not read any text from this file.");
     }
 
-    if (result.parts.length === 0) {
-      throw new Error(
-        "No part line items could be found on this estimate. Try a clearer photo or the original PDF."
-      );
-    }
-
-    // Always prefer vehicle printed on the estimate (customer shouldn't type it).
+    // Prefer vehicle printed on the estimate; if missing, keep Pending and ask the user.
     const detectedYear = result.vehicle.year;
     const detectedModel = result.vehicle.model;
     const detectedEngine = result.vehicle.engine;
+    const needsVehicle =
+      !detectedYear ||
+      !detectedModel ||
+      detectedModel.toLowerCase() === "pending";
 
-    if (!detectedYear || !detectedModel) {
-      throw new Error(
-        "Couldn't find your BMW year/model on that estimate. Make sure the vehicle line is visible, or try a clearer photo/PDF."
-      );
-    }
-
-    await db.$transaction([
-      db.estimateItem.deleteMany({ where: { estimateId } }),
-      db.estimateItem.createMany({
+    await db.estimateItem.deleteMany({ where: { estimateId } });
+    if (result.parts.length > 0) {
+      await db.estimateItem.createMany({
         data: result.parts.map((p) => ({
           estimateId,
           description: p.description,
@@ -182,28 +174,43 @@ export async function processEstimate(estimateId: string): Promise<void> {
           mechanicPrice: p.mechanicPrice,
           oemPartNumber: normalizeOemNumber(p.oemPartNumber),
         })),
-      }),
-      db.estimate.update({
-        where: { id: estimateId },
-        data: {
-          extractedText: text,
-          mechanicShopName: result.shopName,
-          mechanicTotal: result.totalEstimate,
-          laborTotal: result.laborTotal,
-          status: "PARSED",
-        },
-      }),
-      db.vehicle.update({
-        where: { id: estimate.vehicleId },
-        data: {
-          year: detectedYear,
-          model: detectedModel,
-          ...(detectedEngine ? { engine: detectedEngine } : {}),
-        },
-      }),
-    ]);
+      });
+    }
 
-    await buildComparisons(estimateId);
+    await db.estimate.update({
+      where: { id: estimateId },
+      data: {
+        extractedText: text,
+        mechanicShopName: result.shopName,
+        mechanicTotal: result.totalEstimate,
+        laborTotal: result.laborTotal,
+        status: "PARSED",
+        errorMessage: needsVehicle
+          ? "NEED_VEHICLE"
+          : result.parts.length === 0
+            ? "NO_PARTS"
+            : null,
+      },
+    });
+
+    await db.vehicle.update({
+      where: { id: estimate.vehicleId },
+      data: needsVehicle
+        ? {
+            year: detectedYear ?? new Date().getFullYear(),
+            model: "Pending",
+            engine: null,
+          }
+        : {
+            year: detectedYear!,
+            model: detectedModel!,
+            ...(detectedEngine ? { engine: detectedEngine } : { engine: null }),
+          },
+    });
+
+    if (!needsVehicle && result.parts.length > 0) {
+      await buildComparisons(estimateId);
+    }
   } catch (err) {
     await db.estimate.update({
       where: { id: estimateId },
@@ -223,4 +230,47 @@ export async function retryEstimate(estimateId: string): Promise<void> {
   const estimate = await db.estimate.findUniqueOrThrow({ where: { id: estimateId } });
   if (estimate.userId !== user.id && !user.isAdmin) throw new Error("Forbidden");
   await processEstimate(estimateId);
+}
+
+/** Customer fills year/model only when the estimate didn't print them clearly. */
+export async function confirmEstimateVehicle(
+  estimateId: string,
+  input: { year: number; model: string; engine?: string }
+): Promise<{ error?: string }> {
+  const user = await ensureUser();
+  const estimate = await db.estimate.findUniqueOrThrow({
+    where: { id: estimateId },
+    include: { items: true },
+  });
+  if (estimate.userId !== user.id && !user.isAdmin) throw new Error("Forbidden");
+
+  const year = Number(input.year);
+  const model = input.model.trim().replace(/\s+/g, "");
+  if (!Number.isFinite(year) || year < 1990 || year > new Date().getFullYear() + 1) {
+    return { error: "Enter a valid model year." };
+  }
+  if (model.length < 2 || model.toLowerCase() === "pending") {
+    return { error: "Enter your BMW model (e.g. 330i, M5, X5)." };
+  }
+
+  const engine = input.engine?.trim() ? input.engine.trim().toUpperCase() : null;
+
+  await db.vehicle.update({
+    where: { id: estimate.vehicleId },
+    data: { year, model, engine },
+  });
+  await db.estimate.update({
+    where: { id: estimateId },
+    data: {
+      errorMessage: estimate.items.length === 0 ? "NO_PARTS" : null,
+    },
+  });
+
+  if (estimate.items.length > 0) {
+    await buildComparisons(estimateId);
+  }
+
+  revalidatePath(`/results/${estimateId}`);
+  revalidatePath("/catalog");
+  return {};
 }
