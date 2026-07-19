@@ -48,8 +48,8 @@ export default async function CheckoutPage({
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Checkout</h1>
       <p className="mt-2 max-w-2xl text-muted-foreground">
-        Pay once for all {cart.items.length} parts on this site. Ship to your home or straight
-        to your mechanic.
+        Pay once for all {cart.items.length} parts on this site. We order from our suppliers
+        and ship to your home or mechanic — you keep shopping here, we handle the rest.
       </p>
       <div className="mt-8 grid gap-8 lg:grid-cols-5">
         <Card className="lg:col-span-3">

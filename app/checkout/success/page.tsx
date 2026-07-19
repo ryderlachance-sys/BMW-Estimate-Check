@@ -84,8 +84,8 @@ export default async function CheckoutSuccessPage({
       <p className="mt-3 text-muted-foreground">
         {paid
           ? isMechanic
-            ? "Card charged. We're ordering the parts from our suppliers and shipping them to your shop."
-            : "Card charged. We're ordering the parts from our suppliers and shipping them to your address."
+            ? "We're ordering all parts from our suppliers automatically and shipping them to your shop. You don't need to buy anything elsewhere."
+            : "We're ordering all parts from our suppliers automatically and shipping them to you. You don't need to buy anything elsewhere."
           : "We're confirming your payment. Refresh in a moment if status hasn't updated yet."}
       </p>
 

@@ -32,7 +32,8 @@ export default async function AdminOrdersPage() {
         <div>
           <CardTitle>Orders</CardTitle>
           <CardDescription>
-            {orders.length} total — after payment we auto-create buy sheets / webhook jobs. Paste tracking when shipped.
+            {orders.length} total — paid orders auto-dispatch to Order Desk / webhook. Paste
+            tracking when the supplier ships (or let the webhook POST it).
           </CardDescription>
         </div>
         <Link href="/api/admin/orders/export">

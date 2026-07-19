@@ -3,12 +3,14 @@ import { db } from "@/lib/db";
 import { formatCurrency, round2 } from "@/lib/utils";
 import { affiliateProgramsConfigured } from "@/lib/affiliates";
 import { isStripeConfigured } from "@/lib/stripe";
+import { isAutoDropshipConfigured } from "@/lib/fulfillment";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default async function AdminAnalyticsPage() {
   const affiliates = affiliateProgramsConfigured();
   const stripeReady = isStripeConfigured();
+  const dropship = isAutoDropshipConfigured();
   const [paidOrders, comparisonAgg, estimateCount, topModels] = await Promise.all([
     db.order.findMany({
       where: { status: { in: ["PAID", "FULFILLING", "SHIPPED"] } },
@@ -25,7 +27,7 @@ export default async function AdminAnalyticsPage() {
   ]);
 
   const revenue = round2(paidOrders.reduce((s, o) => s + o.total, 0));
-  const moneyReady = affiliates.amazon || affiliates.ebay || affiliates.fcpEuro;
+  const moneyReady = stripeReady && dropship.ready;
 
   const stats = [
     {
@@ -59,92 +61,93 @@ export default async function AdminAnalyticsPage() {
       <Card className={moneyReady ? "border-green-300 bg-green-50/50" : "border-amber-300 bg-amber-50/60"}>
         <CardHeader>
           <CardTitle className="text-xl">
-            {moneyReady ? "Affiliate payouts are connected" : "Finish this to get paid (5–10 min)"}
+            {moneyReady
+              ? "Auto dropship is live — customers pay you, suppliers ship"
+              : "Finish setup: take payment + auto-order parts"}
           </CardTitle>
           <CardDescription>
-            Your real money path: people click <strong>Find on Amazon / eBay / FCP</strong> and buy.
-            Those companies pay you a commission. Cart/Stripe is optional and harder (you ship parts).
+            Customers pay on your site (Stripe). After payment we automatically send the
+            order to your dropship provider. Suppliers ship to the customer. You keep the
+            margin (~25% built into catalog prices) — you never click Buy yourself.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 text-sm">
           <ol className="list-decimal space-y-4 pl-5">
             <li>
               <p className="font-semibold">
-                Amazon Associates{" "}
-                <span className={affiliates.amazon ? "text-green-700" : "text-amber-800"}>
-                  ({affiliates.amazon ? "connected" : "not connected"})
+                Stripe (customer pays you){" "}
+                <span className={stripeReady ? "text-green-700" : "text-amber-800"}>
+                  ({stripeReady ? "connected" : "not set"})
                 </span>
               </p>
               <p className="mt-1 text-muted-foreground">
-                Sign up at affiliate-program.amazon.com (must be 18+ — a parent can open the account).
-                After approval, copy your <strong>Store ID / Associate tag</strong> (looks like{" "}
-                <code>yourname-20</code>).
-              </p>
-              <a
-                href="https://affiliate-program.amazon.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex"
-              >
-                <Button type="button" size="sm" variant="outline" className="gap-1.5">
-                  Open Amazon signup <ExternalLink className="size-3.5" />
-                </Button>
-              </a>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Then tell Cursor your tag (or add{" "}
-                <code>NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG</code> in Vercel → Redeploy).
+                Add <code>STRIPE_SECRET_KEY</code> + webhook secret on Vercel. Customers
+                checkout on your site for the whole cart.
               </p>
             </li>
             <li>
               <p className="font-semibold">
-                eBay Partner Network{" "}
-                <span className={affiliates.ebay ? "text-green-700" : "text-amber-800"}>
-                  ({affiliates.ebay ? "connected" : "not connected"})
+                Auto dropship (orders parts for you){" "}
+                <span className={dropship.ready ? "text-green-700" : "text-amber-800"}>
+                  ({dropship.ready ? "connected" : "not set"})
                 </span>
               </p>
               <p className="mt-1 text-muted-foreground">
-                Sign up, create a campaign, copy the <strong>Campaign ID</strong> (numbers).
+                Pick one: <strong>Order Desk</strong> (<code>ORDERDESK_STORE_ID</code> +{" "}
+                <code>ORDERDESK_API_KEY</code>) — connect Amazon/suppliers once — or a{" "}
+                <strong>Make/Zapier</strong> webhook (<code>FULFILLMENT_WEBHOOK_URL</code>).
+                Optional backup: <code>FULFILLMENT_EMAIL</code> gets a buy sheet if auto-buy
+                fails (never emailed to the customer).
               </p>
-              <a
-                href="https://partnernetwork.ebay.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex"
-              >
-                <Button type="button" size="sm" variant="outline" className="gap-1.5">
-                  Open eBay signup <ExternalLink className="size-3.5" />
-                </Button>
-              </a>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Env key: <code>NEXT_PUBLIC_EBAY_CAMPAIGN_ID</code>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Status: Order Desk {dropship.orderDesk ? "on" : "off"} · Webhook{" "}
+                {dropship.webhook ? "on" : "off"} · Buyer email{" "}
+                {dropship.emailBuyer ? "on" : "off"}
               </p>
             </li>
             <li>
               <p className="font-semibold">
-                FCP Euro (Impact){" "}
-                <span className={affiliates.fcpEuro ? "text-green-700" : "text-amber-800"}>
-                  ({affiliates.fcpEuro ? "connected" : "not connected"})
+                Optional affiliate links on results{" "}
+                <span
+                  className={
+                    affiliates.amazon || affiliates.ebay || affiliates.fcpEuro
+                      ? "text-green-700"
+                      : "text-muted-foreground"
+                  }
+                >
+                  (
+                  {affiliates.amazon || affiliates.ebay || affiliates.fcpEuro
+                    ? "connected"
+                    : "optional"}
+                  )
                 </span>
               </p>
               <p className="mt-1 text-muted-foreground">
-                Apply via Impact / FCP&apos;s partner page. Paste the click/tracking ID as{" "}
-                <code>NEXT_PUBLIC_FCP_EURO_CLICK_ID</code>.
+                Extra commission if someone buys on Amazon/FCP from the results page
+                instead of your cart.
               </p>
             </li>
           </ol>
 
           <div className="rounded-lg border bg-background px-4 py-3 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">How you get paid</p>
+            <p className="font-medium text-foreground">How you make money</p>
             <p className="mt-1">
-              Customers pay you at checkout (Stripe) for the full cart — you keep the
-              margin. You must buy the parts and ship them (or refund).
-            </p>
-            <p className="mt-2">
-              Stripe: <strong>{stripeReady ? "keys live" : "not set"}</strong>. Optional
-              Amazon/FCP/eBay links on results still earn affiliate commission if someone
-              buys there instead.
+              Customer pays catalog price on Stripe → we auto-order at ~supplier cost →
+              difference is your profit. No inventory on your shelf.
             </p>
           </div>
+
+          <a
+            href="https://www.orderdesk.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex"
+          >
+            <Button variant="outline" size="sm" className="gap-1.5">
+              Open Order Desk
+              <ExternalLink className="size-3.5" />
+            </Button>
+          </a>
         </CardContent>
       </Card>
 
