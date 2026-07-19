@@ -7,7 +7,7 @@ export const maxDuration = 60;
 export const metadata: Metadata = {
   title: "Find Cheaper Parts",
   description:
-    "Upload your BMW repair estimate and buy the same parts cheaper online.",
+    "Drop in your BMW shop estimate. We read your car and show cheaper parts to buy online.",
 };
 
 export default function UploadPage() {
@@ -18,7 +18,7 @@ export default function UploadPage() {
           Find cheaper parts
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Drop in your shop estimate. We show what to buy online — and where.
+          Drop your estimate. We read the car from the paperwork — no forms.
         </p>
       </div>
       <div className="mt-10">

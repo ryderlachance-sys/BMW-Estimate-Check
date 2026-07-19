@@ -14,14 +14,6 @@ import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
 
 const CreateEstimateSchema = z.object({
-  year: z.coerce.number().int().min(1990).max(new Date().getFullYear() + 1),
-  model: z.string().min(1, "Model is required"),
-  trim: z.string().optional(),
-  engine: z.string().optional(),
-  vin: z
-    .string()
-    .optional()
-    .refine((v) => !v || /^[A-HJ-NPR-Z0-9]{17}$/i.test(v), "VIN must be 17 characters"),
   fileUrl: z
     .string()
     .min(1, "Please upload your estimate first")
@@ -42,11 +34,6 @@ export async function createEstimate(
   const user = await ensureUser();
 
   const parsed = CreateEstimateSchema.safeParse({
-    year: formData.get("year"),
-    model: formData.get("model"),
-    trim: formData.get("trim") || undefined,
-    engine: formData.get("engine") || undefined,
-    vin: formData.get("vin") || undefined,
     fileUrl: formData.get("fileUrl"),
     fileType: formData.get("fileType"),
     extractedText: String(formData.get("extractedText") ?? "") || undefined,
@@ -63,15 +50,16 @@ export async function createEstimate(
     };
   }
 
+  // Placeholder — year/model/engine are filled from the estimate during processEstimate.
   const vehicle = await db.vehicle.create({
     data: {
       userId: user.id,
-      year: data.year,
+      year: new Date().getFullYear(),
       make: "BMW",
-      model: data.model,
-      trim: data.trim ?? null,
-      engine: data.engine ?? null,
-      vin: data.vin ? data.vin.toUpperCase() : null,
+      model: "Pending",
+      trim: null,
+      engine: null,
+      vin: null,
     },
   });
 
@@ -86,8 +74,6 @@ export async function createEstimate(
     },
   });
 
-  // Parse in the background so the upload form can redirect immediately.
-  // Photo OCR is too slow to finish inside the form POST on Vercel.
   after(async () => {
     try {
       await processEstimate(estimate.id);
@@ -175,6 +161,17 @@ export async function processEstimate(estimateId: string): Promise<void> {
       );
     }
 
+    // Always prefer vehicle printed on the estimate (customer shouldn't type it).
+    const detectedYear = result.vehicle.year;
+    const detectedModel = result.vehicle.model;
+    const detectedEngine = result.vehicle.engine;
+
+    if (!detectedYear || !detectedModel) {
+      throw new Error(
+        "Couldn't find your BMW year/model on that estimate. Make sure the vehicle line is visible, or try a clearer photo/PDF."
+      );
+    }
+
     await db.$transaction([
       db.estimateItem.deleteMany({ where: { estimateId } }),
       db.estimateItem.createMany({
@@ -196,19 +193,14 @@ export async function processEstimate(estimateId: string): Promise<void> {
           status: "PARSED",
         },
       }),
-      // Prefer vehicle details printed on the estimate (exact fitment).
-      ...(result.vehicle.model || result.vehicle.engine || result.vehicle.year
-        ? [
-            db.vehicle.update({
-              where: { id: estimate.vehicleId },
-              data: {
-                ...(result.vehicle.year ? { year: result.vehicle.year } : {}),
-                ...(result.vehicle.model ? { model: result.vehicle.model } : {}),
-                ...(result.vehicle.engine ? { engine: result.vehicle.engine } : {}),
-              },
-            }),
-          ]
-        : []),
+      db.vehicle.update({
+        where: { id: estimate.vehicleId },
+        data: {
+          year: detectedYear,
+          model: detectedModel,
+          ...(detectedEngine ? { engine: detectedEngine } : {}),
+        },
+      }),
     ]);
 
     await buildComparisons(estimateId);

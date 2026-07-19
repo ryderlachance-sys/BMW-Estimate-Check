@@ -180,7 +180,7 @@ const steps = [
   {
     icon: Upload,
     title: "Upload your estimate",
-    body: "Snap a photo or upload the PDF your shop gave you. Add your BMW's year, model, and engine.",
+    body: "Snap a photo or upload the PDF your shop gave you. We read the year, model, and engine off the estimate.",
   },
   {
     icon: FileScan,

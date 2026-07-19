@@ -28,8 +28,68 @@ const LEADING_QTY_RE = /^\s*(\d{1,2})\s+(?=[A-Za-z])/;
 const QTY_COLUMN_RE = /\s(\d{1,2})\s+\$\s*[\d,]+(?:\.\d{2})?\s*$/;
 
 const YEAR_RE = /\b(19[89]\d|20[0-4]\d)\b/;
-const MODEL_RE = /\b(\d{3}\s?[a-z]{1,2}|X[1-7]\s?M?|M[2-8]|Z4|i[3-8]|M340i|M550i)\b/i;
-const ENGINE_RE = /\b([NBS]\d{2}|S55|S58|S63)[A-Z]?\b/;
+const MODEL_RE =
+  /\b(M340i|M550i|M\d|[0-9]{3}\s?[a-z]{1,2}|X[1-7]\s?M?|Z4|i[3-8X]|iX)\b/i;
+const ENGINE_RE = /\b([NBS]\d{2}|S55|S58|S63|B46|B48|B58)[A-Z]?\b/i;
+
+function normalizeModel(raw: string): string {
+  return raw
+    .replace(/\s+/g, "")
+    .toUpperCase()
+    .replace(/^(\d{3})([A-Z]+)$/, (_, d, s) => d + s.toLowerCase())
+    .replace(/^IX$/i, "iX")
+    .replace(/^(I)(\d)$/i, (_, _i, n) => `i${n}`);
+}
+
+/** Pull year / model / engine from estimate text (Vehicle: line preferred). */
+export function extractVehicleFromText(text: string): {
+  year: number | null;
+  model: string | null;
+  engine: string | null;
+} {
+  const fullText = text.replace(/\s+/g, " ");
+
+  let year: number | null = null;
+  let model: string | null = null;
+  let engine: string | null = null;
+
+  // "Vehicle: 2020 BMW M5 Competition Engine: S63"
+  const labeled = fullText.match(
+    /(?:vehicle|veh)\s*:?\s*(19[89]\d|20[0-4]\d)\s+(?:BMW\s+)?(M340i|M550i|M\d|[0-9]{3}\s?[a-z]{1,2}|X[1-7]\s?M?|Z4|i[3-8X]|iX)\b/i
+  );
+  if (labeled) {
+    year = Number(labeled[1]);
+    model = normalizeModel(labeled[2]);
+  }
+
+  const engineLabeled = fullText.match(
+    /engine\s*:?\s*([NBS]\d{2}|S55|S58|S63|B46|B48|B58)[A-Z]?\b/i
+  );
+  if (engineLabeled) engine = engineLabeled[1].toUpperCase();
+
+  if (!year) {
+    const vehicleYearMatch = fullText.match(
+      new RegExp(`${YEAR_RE.source}\\s+(?:BMW\\b|${MODEL_RE.source})`, "i")
+    );
+    const yearMatch = vehicleYearMatch ?? fullText.match(YEAR_RE);
+    if (yearMatch) year = Number(yearMatch[1]);
+  }
+
+  if (!model) {
+    const afterBmw = fullText.match(
+      /\bBMW\s+(M340i|M550i|M\d|[0-9]{3}\s?[a-z]{1,2}|X[1-7]\s?M?|Z4|i[3-8X]|iX)\b/i
+    );
+    const modelMatch = afterBmw ?? fullText.match(MODEL_RE);
+    if (modelMatch) model = normalizeModel(modelMatch[1]);
+  }
+
+  if (!engine) {
+    const engineMatch = fullText.match(ENGINE_RE);
+    if (engineMatch) engine = engineMatch[1].toUpperCase();
+  }
+
+  return { year, model, engine };
+}
 
 function moneyValues(line: string): number[] {
   const values: number[] = [];
@@ -86,9 +146,6 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
   let shopName: string | null = null;
   let laborTotal = 0;
   let totalEstimate: number | null = null;
-  let year: number | null = null;
-  let model: string | null = null;
-  let engine: string | null = null;
   const parts: ParsedEstimate["parts"] = [];
 
   // Shop name: first meaningful text line without prices.
@@ -105,22 +162,7 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
     }
   }
 
-  // Vehicle info from anywhere in the document. Prefer a year immediately
-  // followed by "BMW" or a model name so we don't grab the invoice date.
-  const fullText = lines.join(" ");
-  const vehicleYearMatch = fullText.match(
-    new RegExp(`${YEAR_RE.source}\\s+(?:BMW\\b|${MODEL_RE.source})`, "i")
-  );
-  const yearMatch = vehicleYearMatch ?? fullText.match(YEAR_RE);
-  if (yearMatch) year = Number(yearMatch[1]);
-  const modelMatch = fullText.match(MODEL_RE);
-  if (modelMatch)
-    model = modelMatch[1]
-      .replace(/\s+/g, "")
-      .toUpperCase()
-      .replace(/^(\d{3})([A-Z]+)$/, (_, d, s) => d + s.toLowerCase());
-  const engineMatch = fullText.match(ENGINE_RE);
-  if (engineMatch) engine = engineMatch[0].toUpperCase();
+  const { year, model, engine } = extractVehicleFromText(text);
 
   for (const line of lines) {
     const prices = moneyValues(line);

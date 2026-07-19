@@ -42,7 +42,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         <ProcessingPoller />
         <Loader2 className="size-12 animate-spin text-primary" />
         <h1 className="mt-6 text-2xl font-bold">Finding cheaper parts…</h1>
-        <p className="mt-3 text-muted-foreground">Usually takes a few seconds.</p>
+        <p className="mt-3 text-muted-foreground">
+          Reading your BMW from the estimate, then matching parts. Usually a few seconds.
+        </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <RetryParseButton estimateId={estimate.id} />
           <Link href="/upload">
