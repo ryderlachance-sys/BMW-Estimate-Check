@@ -53,9 +53,9 @@ export function extractVehicleFromText(text: string): {
   let model: string | null = null;
   let engine: string | null = null;
 
-  // "Vehicle: 2020 BMW M5 Competition Engine: S63"
+  // "Vehicle: 2020 BMW M5" OR "Estimate for 2018 BMW 430i xDrive"
   const labeled = fullText.match(
-    /(?:vehicle|veh)\s*:?\s*(19[89]\d|20[0-4]\d)\s+(?:BMW\s+)?(M340i|M550i|M\d|[0-9]{3}\s?[a-z]{1,2}|X[1-7]\s?M?|Z4|i[3-8X]|iX)\b/i
+    /(?:vehicle|veh|estimate\s+for)\s*:?\s*(19[89]\d|20[0-4]\d)\s+(?:BMW\s+)?(M340i|M550i|M\d|[0-9]{3}\s?[a-z]{1,2}|X[1-7]\s?M?|Z4|i[3-8X]|iX)\b/i
   );
   if (labeled) {
     year = Number(labeled[1]);
@@ -136,24 +136,52 @@ function normalizeOcrArtifacts(text: string): string {
   return repairOcrText(text);
 }
 
+/** Merge description-only lines with the following priced line (common OCR wrap). */
+function joinBrokenLines(lines: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    while (
+      i + 1 < lines.length &&
+      moneyValues(line).length === 0 &&
+      /[A-Za-z]{2,}/.test(line) &&
+      moneyValues(lines[i + 1]).length > 0 &&
+      !/^(subtotal|tax|total|grand|labor|job|approve|decline|part\s*qty)/i.test(lines[i + 1]) &&
+      !/coolant line to|replace leaking|turbo and water/i.test(lines[i + 1]) &&
+      // Cap join into part lines only — totals/headers may have large job amounts
+      (/job\s*total|grand\s*total|subtotal|tax/i.test(line) ||
+        moneyValues(lines[i + 1])[moneyValues(lines[i + 1]).length - 1] <= 1500)
+    ) {
+      i += 1;
+      line = `${line} ${lines[i]}`;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+const SKIP_LINE_RE =
+  /\b(approve|decline|labor\s*total|job\s*total|subtotal\s*est|part\s*qty|retail\s*total|tech\s*:|replace\s+leaking|water\s+pump\s*$|base\s*$)\b/i;
+
 export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
   const text = normalizeOcrArtifacts(rawText);
-  const lines = text
+  const rawLines = text
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
+  const lines = joinBrokenLines(rawLines);
 
   let shopName: string | null = null;
   let laborTotal = 0;
   let totalEstimate: number | null = null;
   const parts: ParsedEstimate["parts"] = [];
 
-  // Shop name: first meaningful text line without prices.
-  for (const line of lines.slice(0, 6)) {
+  for (const line of lines.slice(0, 8)) {
     if (
       /[A-Za-z]{3,}/.test(line) &&
       moneyValues(line).length === 0 &&
       !YEAR_RE.test(line) &&
+      !/vehicle|estimate\s+for/i.test(line) &&
       line.length >= 3 &&
       line.length <= 60
     ) {
@@ -169,10 +197,25 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
     if (prices.length === 0) continue;
     const price = prices[prices.length - 1];
 
+    if (SKIP_LINE_RE.test(line)) {
+      // "Job Total $5,518.41" / labor block totals (sometimes money is on the next line)
+      if (/job\s*total|grand\s*total|estimate\s+for/i.test(line) || /total/i.test(line)) {
+        if (price > 200) totalEstimate = Math.max(totalEstimate ?? 0, price);
+        const idx = lines.indexOf(line);
+        const next = idx >= 0 ? lines[idx + 1] : undefined;
+        if (next) {
+          const nextPrices = moneyValues(next);
+          if (nextPrices.length > 0 && !/[A-Za-z]{4,}/.test(next)) {
+            const jobTotal = nextPrices[nextPrices.length - 1];
+            if (jobTotal > 200) totalEstimate = Math.max(totalEstimate ?? 0, jobTotal);
+          }
+        }
+      }
+      continue;
+    }
+
     if (SUBTOTAL_RE.test(line)) continue;
     if (TAX_RE.test(line) && !/gasket|exhaust/i.test(line)) continue;
-    // Any "total"-ish line (incl. OCR misreads like "Suctotal", "GRANDTOTAL")
-    // is never a part; the grand total is the largest such value.
     if (/total/i.test(line) || TOTAL_RE.test(line)) {
       totalEstimate = Math.max(totalEstimate ?? 0, price);
       continue;
@@ -183,12 +226,23 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
     }
     if (FEE_RE.test(line)) continue;
 
-    // Sanity bounds: OCR sometimes produces $0 or absurd values.
-    if (price <= 0 || price > 100_000) continue;
+    // Labor packages / narrative blocks — not parts
+    if (/coolant line to|turbo and water|pump assembly|replace leaking/i.test(line)) {
+      continue;
+    }
 
-    const description = cleanDescription(line);
-    // Require a real description (letters) so we skip stray number rows.
+    // Individual parts on BMW estimates are rarely > $1,500 each
+    if (price <= 0 || price > 1_500) continue;
+
+    const description = cleanDescription(line)
+      .replace(/\b(qty|retail|total)\b/gi, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
+    // Require a real part-like description (not "TO", "Line" alone without context — after join should be longer)
     if (!/[A-Za-z]{3,}/.test(description)) continue;
+    if (description.length < 6) continue;
+    if (/^(to|and|with|the|for|a)$/i.test(description)) continue;
 
     parts.push({
       description,
@@ -198,14 +252,24 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
     });
   }
 
-  const partsSum = parts.reduce((s, p) => s + p.mechanicPrice, 0);
+  // Deduplicate near-identical lines (OCR sometimes doubles)
+  const deduped: typeof parts = [];
+  for (const p of parts) {
+    const key = `${p.description.toLowerCase()}|${p.mechanicPrice}`;
+    if (deduped.some((d) => `${d.description.toLowerCase()}|${d.mechanicPrice}` === key)) {
+      continue;
+    }
+    deduped.push(p);
+  }
+
+  const partsSum = deduped.reduce((s, p) => s + p.mechanicPrice, 0);
   totalEstimate = sanitizeGrandTotal(totalEstimate, partsSum, laborTotal);
 
   return ParsedEstimateSchema.parse({
     shopName,
     vehicle: { year, model, engine },
     laborTotal: laborTotal > 0 ? laborTotal : null,
-    parts,
+    parts: deduped,
     totalEstimate,
   });
 }

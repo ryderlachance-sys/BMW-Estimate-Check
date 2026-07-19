@@ -54,7 +54,12 @@ export function sanitizeGrandTotal(
   if (total == null || total <= 0) return null;
   const baseline = partsSum + Math.max(0, laborTotal);
   if (baseline <= 0) return total;
-  if (total <= baseline * 2.5) return total;
+
+  // BMW shop jobs often bury labor in the job total. When we couldn't parse
+  // labor separately, allow the job total to be several times parts alone.
+  const maxReasonable =
+    laborTotal > 0 ? baseline * 2.5 : Math.max(baseline * 2.5, partsSum * 8, partsSum + 12_000);
+  if (total <= maxReasonable) return total;
 
   const asText = String(total);
   if (asText.startsWith("5")) {
@@ -62,14 +67,14 @@ export function sanitizeGrandTotal(
     if (
       Number.isFinite(stripped) &&
       stripped >= baseline * 0.45 &&
-      stripped <= baseline * 2.5
+      stripped <= maxReasonable
     ) {
       return stripped;
     }
   }
 
   // Still absurd — don't show a fake $50k quote; fall back to parts+labor (+~tax).
-  if (total > baseline * 3) {
+  if (total > maxReasonable * 1.5) {
     return Math.round(baseline * 1.0725 * 100) / 100;
   }
   return total;

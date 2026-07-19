@@ -53,7 +53,12 @@ const SYNONYMS: Record<string, string> = {
   "ctrl arm": "control arm",
   plugs: "plug",
   gaskets: "gasket",
+  gskt: "gasket",
   seals: "seal",
+  "w/pulley": "water pump",
+  "oil filter housing": "oil filter housing",
+  "coolant line": "coolant line",
+  "coolant pipe": "coolant pipe",
 };
 
 const STOP_WORDS = new Set([
@@ -107,7 +112,18 @@ export function similarityScore(itemDescription: string, part: CatalogPart): num
   const allScore = allOverlap / itemTokens.size;
   // Description-only hits are almost worthless for matching.
   if (nameOverlap === 0) return allScore * 0.15;
-  return 0.75 * nameScore + 0.25 * allScore;
+
+  let score = 0.75 * nameScore + 0.25 * allScore;
+
+  // Don't match "oil filter housing" to a gasket, or vice versa.
+  const TYPE_WORDS = ["gasket", "seal", "sensor", "kit", "oring", "ring"];
+  for (const tw of TYPE_WORDS) {
+    const inItem = itemTokens.has(tw);
+    const inName = nameTokens.has(tw);
+    if (inItem !== inName) score -= 0.4;
+  }
+
+  return Math.max(0, score);
 }
 
 export function normalizeOemNumber(value: string | null | undefined): string | null {

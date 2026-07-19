@@ -11,11 +11,13 @@ export function AddAllToCartButton({
   estimateId,
   count,
   variant = "outline",
+  className,
 }: {
   estimateId: string;
   count: number;
   /** Default outline — retailer buy links are the primary money path. */
   variant?: "default" | "outline" | "secondary";
+  className?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [added, setAdded] = useState(false);
@@ -25,6 +27,7 @@ export function AddAllToCartButton({
     <Button
       size="lg"
       variant={variant}
+      className={className}
       disabled={pending || count === 0}
       onClick={() =>
         startTransition(async () => {

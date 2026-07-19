@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Car, Loader2, Wrench } from "lucide-react";
+import { AlertTriangle, ArrowRight, Car, Loader2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { ensureUser } from "@/lib/auth";
 import { formatCurrency, round2 } from "@/lib/utils";
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export const metadata: Metadata = {
-  title: "Cheaper Parts",
+  title: "Your Savings",
   robots: { index: false },
 };
 
@@ -41,16 +41,10 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
       <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-28 text-center">
         <ProcessingPoller />
         <Loader2 className="size-12 animate-spin text-primary" />
-        <h1 className="mt-6 text-2xl font-bold">Finding cheaper parts…</h1>
+        <h1 className="mt-6 text-2xl font-bold">Finding your savings…</h1>
         <p className="mt-3 text-muted-foreground">
-          Reading your BMW from the estimate, then matching parts. Usually a few seconds.
+          Reading the estimate and matching parts. Usually a few seconds.
         </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <RetryParseButton estimateId={estimate.id} />
-          <Link href="/upload">
-            <Button variant="outline">Try a different photo</Button>
-          </Link>
-        </div>
       </div>
     );
   }
@@ -73,46 +67,74 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const comparisons = estimate.comparisons;
-  const matchedItemIds = new Set(comparisons.map((c) => c.estimateItemId));
-  const unmatchedItems = estimate.items.filter((i) => !matchedItemIds.has(i.id));
+  const comparisons = estimate.comparisons.filter((c) => c.savings >= 0 || c.ourPrice > 0);
   const totalSavings = round2(comparisons.reduce((s, c) => s + Math.max(0, c.savings), 0));
-  const shopParts = round2(estimate.items.reduce((s, i) => s + i.mechanicPrice, 0));
+  const shopParts = round2(
+    comparisons.length > 0
+      ? comparisons.reduce((s, c) => s + c.mechanicPrice, 0)
+      : estimate.items.reduce((s, i) => s + i.mechanicPrice, 0)
+  );
   const onlineParts = round2(comparisons.reduce((s, c) => s + c.ourPrice, 0));
+  const carLabel = `${estimate.vehicle.year} BMW ${estimate.vehicle.model}${
+    estimate.vehicle.engine ? ` · ${estimate.vehicle.engine}` : ""
+  }`;
+
+  // No usable matches — keep it short, don't dump garbage OCR lines.
+  if (comparisons.length === 0) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
+        <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+          <Car className="size-3.5" />
+          {carLabel}
+        </p>
+        <h1 className="mt-4 text-2xl font-extrabold tracking-tight">
+          We couldn&apos;t match those parts yet
+        </h1>
+        <p className="mt-3 text-muted-foreground">
+          Upload a clearer photo or the shop PDF so we can show your savings and add parts to cart.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <RetryParseButton estimateId={estimate.id} />
+          <Link href="/upload">
+            <Button>Upload again</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <Car className="size-3.5" />
-          {estimate.vehicle.year} BMW {estimate.vehicle.model}
-        </span>
-        {estimate.mechanicShopName && (
-          <span className="flex items-center gap-1.5">
-            <Wrench className="size-3.5" />
-            {estimate.mechanicShopName}
-          </span>
-        )}
+    <div className="mx-auto max-w-xl px-4 py-10 sm:px-6 sm:py-14">
+      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Car className="size-3.5" />
+        {carLabel}
       </p>
 
-      <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
-        {comparisons.length > 0 ? (
-          totalSavings > 0 ? (
-            <>You can save {formatCurrency(totalSavings)} on these parts</>
-          ) : (
-            <>Here are your parts — buy them cheaper online</>
-          )
-        ) : (
-          <>Parts from your estimate</>
-        )}
-      </h1>
-      <p className="mt-3 text-muted-foreground">
-        {comparisons.length > 0
-          ? `Shop parts ${formatCurrency(shopParts)} → online about ${formatCurrency(onlineParts)}. Tap a store to buy.`
-          : "We couldn’t match these to our catalog yet — search them online below."}
-      </p>
+      {/* THE money moment */}
+      <div className="mt-6 rounded-3xl bg-primary px-6 py-8 text-center text-primary-foreground">
+        <p className="text-sm font-medium uppercase tracking-wide opacity-90">You can save</p>
+        <p className="mt-1 text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl">
+          {formatCurrency(Math.max(0, totalSavings))}
+        </p>
+        <p className="mt-3 text-sm opacity-90">
+          Shop wants {formatCurrency(shopParts)} for these parts → online about{" "}
+          {formatCurrency(onlineParts)}
+        </p>
+      </div>
 
-      <div className="mt-10 space-y-4">
+      <div className="mt-8 space-y-3">
+        <AddAllToCartButton
+          estimateId={estimate.id}
+          count={comparisons.length}
+          variant="default"
+          className="h-14 w-full text-base font-bold"
+        />
+        <p className="text-center text-xs text-muted-foreground">
+          One click — all matched parts go to your cart at the online price.
+        </p>
+      </div>
+
+      <ul className="mt-10 space-y-3">
         {comparisons.map((c) => {
           const links = buildAffiliateLinks({
             brand: c.catalogPart.brand,
@@ -125,117 +147,36 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           });
           const qty = c.estimateItem?.quantity ?? 1;
           return (
-            <article
-              key={c.id}
-              className="rounded-2xl border bg-card px-5 py-5 shadow-sm"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-bold leading-snug">
+            <li key={c.id} className="rounded-2xl border bg-card px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-bold leading-snug">
                     {c.catalogPart.name}
-                    {qty > 1 ? ` × ${qty}` : ""}
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Fits {estimate.vehicle.year} BMW {estimate.vehicle.model}
-                    {estimate.vehicle.engine ? ` · ${estimate.vehicle.engine}` : ""}
-                    {" · "}
-                    {c.catalogPart.brand}
+                    {qty > 1 ? ` ×${qty}` : ""}
                   </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{c.catalogPart.brand}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Shop charged
-                  </p>
-                  <p className="text-lg tabular-nums text-muted-foreground line-through">
+                <div className="shrink-0 text-right">
+                  <p className="text-sm tabular-nums text-muted-foreground line-through">
                     {formatCurrency(c.mechanicPrice)}
                   </p>
-                  <p className="text-xs font-medium uppercase tracking-wide text-primary">
-                    Online from
-                  </p>
-                  <p className="text-2xl font-extrabold tabular-nums text-primary">
+                  <p className="text-lg font-extrabold tabular-nums text-primary">
                     {formatCurrency(c.ourPrice)}
                   </p>
                   {c.savings > 0 && (
-                    <p className="mt-0.5 text-sm font-semibold text-success">
+                    <p className="text-xs font-semibold text-success">
                       Save {formatCurrency(c.savings)}
                     </p>
                   )}
                 </div>
               </div>
-              <div className="mt-4">
-                <AffiliateBuyButtons links={links} />
+              <div className="mt-3">
+                <AffiliateBuyButtons links={links} compact />
               </div>
-            </article>
+            </li>
           );
         })}
-
-        {unmatchedItems.map((item) => {
-          const links = buildAffiliateLinks({
-            brand: "BMW",
-            name: item.description,
-            oemPartNumber: item.oemPartNumber,
-            year: estimate.vehicle.year,
-            model: estimate.vehicle.model,
-            engine: estimate.vehicle.engine,
-          });
-          return (
-            <article
-              key={item.id}
-              className="rounded-2xl border border-dashed bg-muted/30 px-5 py-5"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-bold leading-snug">{item.description}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Search for your {estimate.vehicle.year} BMW {estimate.vehicle.model}
-                    {item.oemPartNumber ? ` · OEM ${item.oemPartNumber}` : ""}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs uppercase text-muted-foreground">Shop charged</p>
-                  <p className="text-xl font-bold tabular-nums">
-                    {formatCurrency(item.mechanicPrice)}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <AffiliateBuyButtons links={links} />
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      {comparisons.length === 0 && unmatchedItems.length === 0 && (
-        <div className="mt-10 rounded-2xl border px-5 py-10 text-center">
-          <p className="font-medium">No parts found on that estimate.</p>
-          <Link href="/upload" className="mt-4 inline-block">
-            <Button>Upload again</Button>
-          </Link>
-        </div>
-      )}
-
-      {comparisons.length === 0 && unmatchedItems.length > 0 && (
-        <div className="mt-6 flex flex-wrap gap-2">
-          <RetryParseButton estimateId={estimate.id} />
-          <Link href="/upload">
-            <Button variant="outline">Upload a clearer photo</Button>
-          </Link>
-        </div>
-      )}
-
-      {comparisons.length > 0 && (
-        <div className="mt-10 space-y-3 border-t pt-8">
-          <p className="text-sm text-muted-foreground">
-            Prefer we order and ship for you? (card checkout — we handle buying)
-          </p>
-          <AddAllToCartButton estimateId={estimate.id} count={comparisons.length} variant="outline" />
-        </div>
-      )}
-
-      <p className="mt-8 text-center text-xs text-muted-foreground">
-        Retailer links may earn us a commission at no extra cost to you.
-      </p>
+      </ul>
 
       <div className="mt-10 text-center">
         <Link
