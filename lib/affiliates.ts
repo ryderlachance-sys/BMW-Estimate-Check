@@ -1,5 +1,8 @@
 /**
  * Affiliate / referral links for real retailers.
+ *
+ * Money path #1: shoppers click these, buy on Amazon/eBay/FCP/RockAuto,
+ * and those programs pay you a commission when your IDs are in env.
  */
 
 export type AffiliateLink = {
@@ -14,7 +17,6 @@ export type PartAffiliateQuery = {
   name: string;
   oemNumbers?: string[] | null;
   oemPartNumber?: string | null;
-  /** Vehicle context makes Amazon/eBay find the right part for THIS car. */
   year?: number | null;
   model?: string | null;
   engine?: string | null;
@@ -45,10 +47,6 @@ function vehiclePhrase(q: PartAffiliateQuery): string {
   return bits.join(" ");
 }
 
-/**
- * Amazon: never put a bare 11-digit OEM in the query — Amazon treats long
- * digit strings like ASINs and shows "product not found". Use year/model + name.
- */
 function amazonSearchQuery(q: PartAffiliateQuery): string {
   const name = cleanName(q.name);
   const vehicle = vehiclePhrase(q);
@@ -57,7 +55,6 @@ function amazonSearchQuery(q: PartAffiliateQuery): string {
   return vehicle || "BMW auto parts";
 }
 
-/** RockAuto / eBay / FCP: OEM is best; else vehicle + name. */
 function partsSearchQuery(q: PartAffiliateQuery): string {
   const oem = firstOem(q);
   if (oem) return oem;
@@ -81,32 +78,22 @@ function withEbayCampid(url: string): string {
   return `${url}${sep}mkcid=1&mkrid=711-53200-19255-0&siteid=0&campid=${encodeURIComponent(campid)}&toolid=10001&mkevt=1`;
 }
 
-/** Build buy links for a catalog / estimate part. */
+/** Build buy links — Amazon first (your commission), RockAuto second (usually cheapest). */
 export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
   const oem = firstOem(q);
   const amazonQ = encodeURIComponent(amazonSearchQuery(q));
   const partsQ = encodeURIComponent(partsSearchQuery(q));
   const ebayText = encodeURIComponent(
-    oem
-      ? `${vehiclePhrase(q)} ${oem}`.trim() || oem
-      : amazonSearchQuery(q)
+    oem ? `${vehiclePhrase(q)} ${oem}`.trim() || oem : amazonSearchQuery(q)
   );
 
   const links: AffiliateLink[] = [];
 
-  // Plain keyword search only — no /dp/, no i=automotive (both cause dead pages).
   links.push({
     id: "amazon",
     label: "Amazon",
     hint: "Fast shipping",
     url: withAmazonTag(`https://www.amazon.com/s?k=${amazonQ}`),
-  });
-
-  links.push({
-    id: "ebay",
-    label: "eBay",
-    hint: "Used & new",
-    url: withEbayCampid(`https://www.ebay.com/sch/i.html?_nkw=${ebayText}`),
   });
 
   const rockQuery = oem ?? partsSearchQuery(q);
@@ -126,6 +113,13 @@ export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
     url: fcpClick
       ? `https://fcpeuro.sjv.io/${fcpClick}?u=${encodeURIComponent(fcpBase)}`
       : fcpBase,
+  });
+
+  links.push({
+    id: "ebay",
+    label: "eBay",
+    hint: "Used & new",
+    url: withEbayCampid(`https://www.ebay.com/sch/i.html?_nkw=${ebayText}`),
   });
 
   return links;

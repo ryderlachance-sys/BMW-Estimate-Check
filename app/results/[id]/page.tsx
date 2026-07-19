@@ -225,11 +225,15 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
       {comparisons.length > 0 && (
         <div className="mt-10 space-y-3 border-t pt-8">
           <p className="text-sm text-muted-foreground">
-            Want parts shipped to you or your mechanic instead?
+            Prefer we order and ship for you? (card checkout — we handle buying)
           </p>
-          <AddAllToCartButton estimateId={estimate.id} count={comparisons.length} />
+          <AddAllToCartButton estimateId={estimate.id} count={comparisons.length} variant="outline" />
         </div>
       )}
+
+      <p className="mt-8 text-center text-xs text-muted-foreground">
+        Retailer links may earn us a commission at no extra cost to you.
+      </p>
 
       <div className="mt-10 text-center">
         <Link

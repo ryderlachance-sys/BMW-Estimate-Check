@@ -21,6 +21,8 @@ export function Footer() {
           </p>
           <p className="mt-6 text-xs text-zinc-500">
             Not affiliated with BMW AG. BMW is a registered trademark of BMW AG.
+            As an Amazon Associate and participant in other affiliate programs, we may
+            earn from qualifying purchases at no extra cost to you.
           </p>
         </div>
         <div>

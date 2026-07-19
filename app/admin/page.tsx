@@ -1,9 +1,10 @@
-import { BadgeDollarSign, Car, Package, TrendingUp } from "lucide-react";
+import { BadgeDollarSign, Car, ExternalLink, Package, TrendingUp } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency, round2 } from "@/lib/utils";
 import { affiliateProgramsConfigured } from "@/lib/affiliates";
 import { isStripeConfigured } from "@/lib/stripe";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default async function AdminAnalyticsPage() {
   const affiliates = affiliateProgramsConfigured();
@@ -24,11 +25,12 @@ export default async function AdminAnalyticsPage() {
   ]);
 
   const revenue = round2(paidOrders.reduce((s, o) => s + o.total, 0));
+  const moneyReady = affiliates.amazon || affiliates.ebay || affiliates.fcpEuro;
 
   const stats = [
     {
       icon: BadgeDollarSign,
-      label: "Revenue (paid orders)",
+      label: "Revenue (paid cart orders)",
       value: formatCurrency(revenue),
       sub: `${paidOrders.length} paid orders`,
     },
@@ -54,34 +56,91 @@ export default async function AdminAnalyticsPage() {
 
   return (
     <div className="space-y-8">
-      <Card className="border-primary/30 bg-accent/40">
+      <Card className={moneyReady ? "border-green-300 bg-green-50/50" : "border-amber-300 bg-amber-50/60"}>
         <CardHeader>
-          <CardTitle>How you get paid</CardTitle>
+          <CardTitle className="text-xl">
+            {moneyReady ? "Affiliate payouts are connected" : "Finish this to get paid (5–10 min)"}
+          </CardTitle>
           <CardDescription>
-            Card checkout uses Stripe (free account; ~2.9% + $0.30 only when a payment
-            succeeds). Affiliate buy buttons also earn when you add free program IDs.
+            Your real money path: people click <strong>Find on Amazon / eBay / FCP</strong> and buy.
+            Those companies pay you a commission. Cart/Stripe is optional and harder (you ship parts).
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3 text-sm">
-          <span>
-            Stripe card payments:{" "}
-            <strong>{stripeReady ? "connected — cards will be charged" : "not set (demo checkout)"}</strong>
-          </span>
-          <span>
-            Amazon Associates:{" "}
-            <strong>{affiliates.amazon ? "connected" : "not set"}</strong>
-          </span>
-          <span>
-            eBay Partner Network:{" "}
-            <strong>{affiliates.ebay ? "connected" : "not set"}</strong>
-          </span>
-          <span>
-            FCP Euro (Impact):{" "}
-            <strong>{affiliates.fcpEuro ? "connected" : "not set"}</strong>
-          </span>
-          <span className="w-full text-xs text-muted-foreground">
-            Stripe keys + affiliate IDs go in <code>.env</code> — see <code>.env.example</code>.
-          </span>
+        <CardContent className="space-y-5 text-sm">
+          <ol className="list-decimal space-y-4 pl-5">
+            <li>
+              <p className="font-semibold">
+                Amazon Associates{" "}
+                <span className={affiliates.amazon ? "text-green-700" : "text-amber-800"}>
+                  ({affiliates.amazon ? "connected" : "not connected"})
+                </span>
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Sign up at affiliate-program.amazon.com (must be 18+ — a parent can open the account).
+                After approval, copy your <strong>Store ID / Associate tag</strong> (looks like{" "}
+                <code>yourname-20</code>).
+              </p>
+              <a
+                href="https://affiliate-program.amazon.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex"
+              >
+                <Button type="button" size="sm" variant="outline" className="gap-1.5">
+                  Open Amazon signup <ExternalLink className="size-3.5" />
+                </Button>
+              </a>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Then tell Cursor your tag (or add{" "}
+                <code>NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG</code> in Vercel → Redeploy).
+              </p>
+            </li>
+            <li>
+              <p className="font-semibold">
+                eBay Partner Network{" "}
+                <span className={affiliates.ebay ? "text-green-700" : "text-amber-800"}>
+                  ({affiliates.ebay ? "connected" : "not connected"})
+                </span>
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Sign up, create a campaign, copy the <strong>Campaign ID</strong> (numbers).
+              </p>
+              <a
+                href="https://partnernetwork.ebay.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex"
+              >
+                <Button type="button" size="sm" variant="outline" className="gap-1.5">
+                  Open eBay signup <ExternalLink className="size-3.5" />
+                </Button>
+              </a>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Env key: <code>NEXT_PUBLIC_EBAY_CAMPAIGN_ID</code>
+              </p>
+            </li>
+            <li>
+              <p className="font-semibold">
+                FCP Euro (Impact){" "}
+                <span className={affiliates.fcpEuro ? "text-green-700" : "text-amber-800"}>
+                  ({affiliates.fcpEuro ? "connected" : "not connected"})
+                </span>
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Apply via Impact / FCP&apos;s partner page. Paste the click/tracking ID as{" "}
+                <code>NEXT_PUBLIC_FCP_EURO_CLICK_ID</code>.
+              </p>
+            </li>
+          </ol>
+
+          <div className="rounded-lg border bg-background px-4 py-3 text-xs text-muted-foreground">
+            <p className="font-medium text-foreground">Stripe cart (optional)</p>
+            <p className="mt-1">
+              Status:{" "}
+              <strong>{stripeReady ? "live — cards are charged" : "not set"}</strong>. Only push
+              cart checkout when you can buy + ship parts. Affiliates pay you with zero inventory.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
