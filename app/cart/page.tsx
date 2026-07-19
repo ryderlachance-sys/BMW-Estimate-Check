@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { QuantityControls, RemoveItemButton } from "@/components/cart-controls";
-import { BuyAllCartParts } from "@/components/affiliate-links";
 import { bestBuyForPart } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
@@ -50,11 +49,9 @@ export default async function CartPage() {
       id: item.id,
       name: item.catalogPart.name,
       store: best.label,
-      url: best.url,
       brand: item.catalogPart.brand,
       price: item.catalogPart.price,
       quantity: item.quantity,
-      sku: item.catalogPart.sku,
     };
   });
 
@@ -64,8 +61,8 @@ export default async function CartPage() {
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Your cart</h1>
       <p className="mt-2 text-muted-foreground">
-        Each part already has the best store picked — cheap + reliable, and where we can earn a
-        commission.
+        Review your parts, then checkout on this site. You&apos;ll finish each purchase at the
+        best retailer we picked — they ship to you, and we earn a commission.
       </p>
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -83,7 +80,7 @@ export default async function CartPage() {
                     </p>
                     <p className="truncate font-semibold">{item.catalogPart.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Buy via {line.store} · {formatCurrency(item.catalogPart.price)} each
+                      Best via {line.store} · {formatCurrency(item.catalogPart.price)} each
                     </p>
                   </div>
                   <QuantityControls itemId={item.id} quantity={item.quantity} />
@@ -108,18 +105,19 @@ export default async function CartPage() {
             </div>
             <Separator />
             <div className="flex justify-between text-base">
-              <span className="font-bold">Total</span>
+              <span className="font-bold">Est. total</span>
               <span className="font-extrabold tabular-nums">{formatCurrency(subtotal)}</span>
             </div>
-            <div className="pt-2">
-              <BuyAllCartParts
-                lines={lines.map((l) => ({
-                  id: l.id,
-                  name: l.name,
-                  store: l.store,
-                  url: l.url,
-                }))}
-              />
+            <div className="space-y-2 pt-2">
+              <Link href="/checkout">
+                <Button size="lg" className="h-12 w-full text-base font-bold">
+                  Checkout
+                </Button>
+              </Link>
+              <p className="text-center text-xs text-muted-foreground">
+                Pay each retailer directly. We never charge your card for parts — we earn a
+                commission when you buy through our links.
+              </p>
             </div>
           </CardContent>
         </Card>

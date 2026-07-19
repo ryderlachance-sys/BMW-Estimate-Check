@@ -33,7 +33,7 @@ export function AddAllToCartButton({
         startTransition(async () => {
           await addAllFromEstimate(estimateId);
           setAdded(true);
-          router.push("/cart");
+          router.push("/checkout");
         })
       }
     >
@@ -44,7 +44,7 @@ export function AddAllToCartButton({
       ) : (
         <ShoppingCart className="size-5" />
       )}
-      {added ? "Added — opening cart" : `Add all ${count} parts to cart`}
+      {added ? "Added — opening checkout" : `Add all ${count} parts to cart`}
     </Button>
   );
 }

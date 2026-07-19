@@ -152,6 +152,7 @@ export async function removeFavoriteMechanic(mechanicId: string): Promise<void> 
   await db.mechanic.deleteMany({ where: { id: mechanicId, userId: user.id } });
   revalidatePath("/dashboard");
   revalidatePath("/checkout");
+  revalidatePath("/checkout/ship");
 }
 
 export async function toggleFavoriteMechanic(
@@ -165,4 +166,5 @@ export async function toggleFavoriteMechanic(
   });
   revalidatePath("/dashboard");
   revalidatePath("/checkout");
+  revalidatePath("/checkout/ship");
 }

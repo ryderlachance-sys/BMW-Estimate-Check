@@ -134,11 +134,18 @@ export default async function AdminAnalyticsPage() {
           </ol>
 
           <div className="rounded-lg border bg-background px-4 py-3 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">Stripe cart (optional)</p>
+            <p className="font-medium text-foreground">How you get paid</p>
             <p className="mt-1">
-              Status:{" "}
-              <strong>{stripeReady ? "live — cards are charged" : "not set"}</strong>. Only push
-              cart checkout when you can buy + ship parts. Affiliates pay you with zero inventory.
+              Customers checkout on the site, then buy at Amazon / RockAuto / FCP via your
+              tagged links. You earn commission — zero inventory.
+            </p>
+            <p className="mt-2">
+              Stripe merchant checkout (you buy + ship):{" "}
+              <strong>{stripeReady ? "keys live" : "not set"}</strong> — only at{" "}
+              <a href="/checkout/ship" className="font-medium text-primary underline">
+                /checkout/ship
+              </a>
+              .
             </p>
           </div>
         </CardContent>

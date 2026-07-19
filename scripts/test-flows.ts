@@ -172,12 +172,21 @@ async function main() {
       check("remove item works", !cart.items.some((i) => i.id === added.id));
     }
 
-    // ---------- 3. Checkout (real HTTP form submission) ----------
-    const checkoutHtml = await (await fetch(`${BASE}/checkout`)).text();
-    const checkoutFields = extractActionFields(checkoutHtml);
-    check("checkout page renders with form action", checkoutFields.length > 0);
+    // ---------- 3. Affiliate checkout (customer path) ----------
+    const affiliateCheckoutHtml = await (await fetch(`${BASE}/checkout`)).text();
     check(
-      "checkout offers Mechanic Delivery",
+      "affiliate checkout renders buy steps",
+      affiliateCheckoutHtml.includes("Checkout") &&
+        (affiliateCheckoutHtml.includes("buy all") ||
+          affiliateCheckoutHtml.includes("Retailers ship"))
+    );
+
+    // ---------- 3b. Merchant Stripe checkout (admin path) ----------
+    const checkoutHtml = await (await fetch(`${BASE}/checkout/ship`)).text();
+    const checkoutFields = extractActionFields(checkoutHtml);
+    check("merchant checkout page renders with form action", checkoutFields.length > 0);
+    check(
+      "merchant checkout offers Mechanic Delivery",
       checkoutHtml.includes("Ship Directly to My Mechanic") &&
         checkoutHtml.includes("Ship to My Address")
     );
@@ -203,7 +212,7 @@ async function main() {
       fd.append("appointmentTime", "09:30");
       fd.append("repairNotes", "Leave with service writer");
       fd.append("saveMechanic", "yes");
-      const res = await fetch(`${BASE}/checkout`, { method: "POST", body: fd, redirect: "manual" });
+      const res = await fetch(`${BASE}/checkout/ship`, { method: "POST", body: fd, redirect: "manual" });
       const loc = res.headers.get("x-action-redirect")?.split(";")[0]
         ?? res.headers.get("location") ?? "";
       check(

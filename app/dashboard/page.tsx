@@ -247,7 +247,7 @@ export default async function DashboardPage() {
                 cartCount > 0 ? (
                   <Link href="/checkout">
                     <Button variant="outline" size="sm" className="w-full">
-                      Use at checkout
+                      Go to checkout
                     </Button>
                   </Link>
                 ) : (
