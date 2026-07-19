@@ -169,6 +169,26 @@ function isCompatible(part: CatalogPart, vehicle: Vehicle): boolean {
 
 const MIN_SEMANTIC_SCORE = 0.45;
 
+/** Labor / R&R lines that should never become catalog matches. */
+export function isLaborLikeEstimateLine(
+  description: string,
+  oemPartNumber?: string | null
+): boolean {
+  if (oemPartNumber && /\d{7,}/.test(oemPartNumber)) return false;
+  const d = description.toLowerCase();
+  if (/\b(labor|labour|diagnos|job\s*time|hr\s*@|hours?\s*@|\d+\.?\d*\s*hr\b)\b/.test(d)) {
+    return true;
+  }
+  if (/\b(replacement|r\s*&\s*r|r\s*\/\s*r|remove\s+(and|&)\s+replace)\b/.test(d)) {
+    if (!/\b(kit|set|pair|assy|assembly|gasket|pad|rotor|filter|plug|sensor)\b/.test(d)) {
+      return true;
+    }
+    // "Spark plug replacement" / "brake pad replacement" without OEM = labor package
+    if (/\breplacement\b/.test(d)) return true;
+  }
+  return false;
+}
+
 export interface MatchResult {
   item: EstimateItem;
   part: CatalogPart;
@@ -194,6 +214,11 @@ export async function matchEstimateItems(
   const results: MatchResult[] = [];
 
   for (const item of items) {
+    // Skip labor / R&R lines that slipped past the parser (no OEM on the line)
+    if (isLaborLikeEstimateLine(item.description, item.oemPartNumber)) {
+      continue;
+    }
+
     const oem = normalizeOemNumber(item.oemPartNumber);
 
     // 1) OEM number match — must fit this car (never N54 plugs on an M5).

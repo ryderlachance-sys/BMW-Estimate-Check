@@ -12,7 +12,9 @@ import {
   RetryParseButton,
 } from "@/components/results-actions";
 import { ConfirmVehicleForm } from "@/components/confirm-vehicle-form";
-import { bestBuyForPart } from "@/lib/affiliates";
+import { AffiliateBuyButtons } from "@/components/affiliate-links";
+import { CatalogPartImage } from "@/components/catalog-part-image";
+import { bestBuyForPart, buildAffiliateLinks } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -180,13 +182,14 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           className="h-14 w-full text-base font-bold"
         />
         <p className="text-center text-xs text-muted-foreground">
-          We pick the best part + store for each line. One button — then buy from your cart.
+          We match the best catalog part for your BMW, then pick the best store
+          (price, OEM fit, warranty) — not always Amazon. Add all, then buy from your cart.
         </p>
       </div>
 
       <ul className="mt-10 space-y-3">
         {comparisons.map((c) => {
-          const best = bestBuyForPart({
+          const query = {
             brand: c.catalogPart.brand,
             name: c.catalogPart.name,
             oemNumbers: c.catalogPart.oemNumbers,
@@ -194,32 +197,48 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             year: estimate.vehicle.year,
             model: estimate.vehicle.model,
             engine: estimate.vehicle.engine,
-          });
+          };
+          const links = buildAffiliateLinks(query);
+          const best = bestBuyForPart(query);
           const qty = c.estimateItem?.quantity ?? 1;
           return (
             <li key={c.id} className="rounded-2xl border bg-card px-4 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-bold leading-snug">
-                    {c.catalogPart.name}
-                    {qty > 1 ? ` ×${qty}` : ""}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {c.catalogPart.brand} · best via {best.label}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm tabular-nums text-muted-foreground line-through">
-                    {formatCurrency(c.mechanicPrice)}
-                  </p>
-                  <p className="text-lg font-extrabold tabular-nums text-primary">
-                    {formatCurrency(c.ourPrice)}
-                  </p>
-                  {c.savings > 0 && (
-                    <p className="text-xs font-semibold text-success">
-                      Save {formatCurrency(c.savings)}
-                    </p>
-                  )}
+              <div className="flex items-start gap-3">
+                <CatalogPartImage
+                  name={c.catalogPart.name}
+                  category={c.catalogPart.category}
+                  imageUrl={c.catalogPart.imageUrl}
+                  className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-secondary"
+                  sizes="56px"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold leading-snug">
+                        {c.catalogPart.name}
+                        {qty > 1 ? ` ×${qty}` : ""}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {c.catalogPart.brand} · best via {best.label}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm tabular-nums text-muted-foreground line-through">
+                        {formatCurrency(c.mechanicPrice)}
+                      </p>
+                      <p className="text-lg font-extrabold tabular-nums text-primary">
+                        {formatCurrency(c.ourPrice)}
+                      </p>
+                      {c.savings > 0 && (
+                        <p className="text-xs font-semibold text-success">
+                          Save {formatCurrency(c.savings)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <AffiliateBuyButtons links={links} compact primaryId={best.id} />
+                  </div>
                 </div>
               </div>
             </li>

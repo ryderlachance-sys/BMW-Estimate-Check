@@ -126,59 +126,62 @@ export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
 }
 
 /**
- * Pick one store per part: balance price, reliability, and whether you earn
- * a commission. Customer never chooses — one cart, one buy flow.
+ * Pick one store per part for the cart "Buy all" flow.
+ * Prioritize price + reliability for the customer's situation — commission is a
+ * small tie-breaker only (never force everything to Amazon).
  */
 export function pickBestAffiliateLink(
   links: AffiliateLink[],
-  opts?: { brand?: string; partName?: string }
+  opts?: { brand?: string; partName?: string; hasOem?: boolean }
 ): AffiliateLink {
-  const programs = affiliateProgramsConfigured();
   const brand = (opts?.brand ?? "").toLowerCase();
   const name = (opts?.partName ?? "").toLowerCase();
+  const hasOem = Boolean(opts?.hasOem);
 
-  const premiumBrand =
-    brand.includes("genuine") ||
+  const genuine = brand.includes("genuine");
+  const oeSupplier =
     brand.includes("pierburg") ||
     brand.includes("bosch") ||
     brand.includes("mahle") ||
     brand.includes("brembo") ||
+    brand.includes("lemf") ||
+    brand.includes("elring") ||
     brand.includes("ngk") ||
-    brand.includes("elring");
-  const safetyPart = /brake|rotor|pad|sensor|plug|gasket|housing|pump/.test(name);
+    brand.includes("mann");
 
-  const scores: Record<string, { cheap: number; reliable: number; commission: number }> = {
-    rockauto: { cheap: 1, reliable: 0.72, commission: 0 },
-    amazon: {
-      cheap: 0.58,
-      reliable: 0.88,
-      commission: programs.amazon ? 1 : 0.15,
-    },
-    fcpeuro: {
-      cheap: 0.48,
-      reliable: 1,
-      commission: programs.fcpEuro ? 0.85 : 0.1,
-    },
-    ebay: {
-      cheap: 0.72,
-      reliable: 0.42,
-      commission: programs.ebay ? 1 : 0.1,
-    },
+  // Consumables / wear items: RockAuto usually wins on price when we have an OEM #
+  const wearItem = /brake|rotor|pad|filter|plug|belt|wiper|sensor|gasket|seal|oring|o-ring/.test(
+    name
+  );
+  // Lifetime-warranty / OE-critical: FCP Euro
+  const warrantySensitive =
+    genuine || /gasket|seal|pump|thermostat|control arm|mount|coil/.test(name);
+  // Fast ship nice-to-have (fluids, batteries, small stuff)
+  const convenienceItem = /fluid|oil|coolant|battery|wiper/.test(name);
+
+  const scores: Record<string, number> = {
+    rockauto: 0.55,
+    amazon: 0.45,
+    fcpeuro: 0.5,
+    ebay: 0.35,
   };
+
+  if (hasOem || wearItem) scores.rockauto += 0.35;
+  if (warrantySensitive || oeSupplier) scores.fcpeuro += 0.3;
+  if (genuine) scores.fcpeuro += 0.35; // Genuine BMW → prefer FCP Euro warranty
+  if (convenienceItem) scores.amazon += 0.25;
+  // Used market only when it might be cheaper and not safety-critical brakes
+  if (!/brake|rotor|pad|sensor/.test(name)) scores.ebay += 0.1;
+  // Tiny commission nudge — not enough to override a clear cheaper/reliable pick
+  const programs = affiliateProgramsConfigured();
+  if (programs.amazon) scores.amazon += 0.05;
+  if (programs.ebay) scores.ebay += 0.05;
+  if (programs.fcpEuro) scores.fcpeuro += 0.05;
 
   let best = links[0];
   let bestScore = -1;
   for (const link of links) {
-    const s = scores[link.id] ?? { cheap: 0.5, reliable: 0.5, commission: 0 };
-    let reliableW = 0.35;
-    let cheapW = 0.35;
-    let commissionW = 0.3;
-    if (premiumBrand || safetyPart) {
-      reliableW = 0.45;
-      cheapW = 0.25;
-      commissionW = 0.3;
-    }
-    const score = cheapW * s.cheap + reliableW * s.reliable + commissionW * s.commission;
+    const score = scores[link.id] ?? 0;
     if (score > bestScore) {
       bestScore = score;
       best = link;
@@ -188,9 +191,11 @@ export function pickBestAffiliateLink(
 }
 
 export function bestBuyForPart(q: PartAffiliateQuery): AffiliateLink {
+  const oem = q.oemNumbers?.some((n) => n && /\d{7,}/.test(n)) || Boolean(q.oemPartNumber);
   return pickBestAffiliateLink(buildAffiliateLinks(q), {
     brand: q.brand,
     partName: q.name,
+    hasOem: Boolean(oem),
   });
 }
 

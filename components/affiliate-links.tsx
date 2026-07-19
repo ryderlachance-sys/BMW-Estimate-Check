@@ -33,8 +33,8 @@ export function BuyAllCartParts({ lines }: { lines: CartBuyLine[] }) {
         Buy all {lines.length} parts
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        We already picked the best store for each part. They ship to you — we earn a small
-        commission.
+        We already picked the best store for each part (price, OEM, warranty — not
+        always Amazon). They ship to you — we earn a small commission.
       </p>
       {open && (
         <ol className="space-y-2 rounded-xl border bg-card p-3 text-left">
@@ -84,7 +84,7 @@ export function AffiliateBuyButtons({
           >
             <Button
               type="button"
-              variant={isPrimary && !compact ? "default" : "outline"}
+              variant={isPrimary ? "default" : "outline"}
               size={compact ? "sm" : "default"}
               className={cn(
                 compact ? "h-8 gap-1 px-2.5 text-xs" : "gap-1.5",

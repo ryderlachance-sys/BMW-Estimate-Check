@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AddToCartButton, CatalogFilters } from "@/components/catalog-controls";
 import { CatalogPartImage } from "@/components/catalog-part-image";
 import { AffiliateBuyButtons } from "@/components/affiliate-links";
-import { bestBuyForPart } from "@/lib/affiliates";
+import { bestBuyForPart, buildAffiliateLinks } from "@/lib/affiliates";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -151,17 +151,21 @@ export default async function CatalogPage({
                       {formatCurrency(part.price)}
                     </p>
                     <div className="mt-3 space-y-2">
-                      <AffiliateBuyButtons
-                        links={[
-                          bestBuyForPart({
-                            brand: part.brand,
-                            name: part.name,
-                            oemNumbers: part.oemNumbers,
-                          }),
-                        ]}
-                        compact
-                        primaryId={undefined}
-                      />
+                      {(() => {
+                        const q = {
+                          brand: part.brand,
+                          name: part.name,
+                          oemNumbers: part.oemNumbers,
+                        };
+                        const best = bestBuyForPart(q);
+                        return (
+                          <AffiliateBuyButtons
+                            links={buildAffiliateLinks(q)}
+                            compact
+                            primaryId={best.id}
+                          />
+                        );
+                      })()}
                       <AddToCartButton
                         partId={part.id}
                         disabled={part.stockStatus === "OUT_OF_STOCK"}

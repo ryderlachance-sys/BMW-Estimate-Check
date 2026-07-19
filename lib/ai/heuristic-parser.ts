@@ -15,7 +15,7 @@ const MONEY_RE = /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)|(?<![\d.])(\d{1,3}(?:,\d
 const OEM_RE = /\b(\d{2})[\s.-]?(\d{2})[\s.-]?(\d)[\s.-]?(\d{3})[\s.-]?(\d{3})\b/;
 
 const LABOR_RE =
-  /\b(labor|labour|diagnos\w*|misfire|r\s*&\s*r|remove\s+(and|&)\s+replace|install(ation)?\s+(fee|charge)|shop\s+time)\b/i;
+  /\b(labor|labour|diagnos\w*|misfire|r\s*&\s*r|r\s*\/\s*r|remove\s+(and|&)\s+replace|install(ation)?\s+(fee|charge)|shop\s+time|\d+\.?\d*\s*hr\b|hr\s*@|hours?\s*@)\b/i;
 const FEE_RE =
   /\b(shop\s+suppl\w*|supplies|hazmat|disposal|environmental|misc(ellaneous)?\s+charge|fee)\b/i;
 const TAX_RE = /\b(tax|hst|gst|vat)\b/i;
@@ -311,6 +311,16 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
       /job\s*time|fuel\s+conditioning|fuel\s+tank|fuel\s+delivery|electrical\s+system|quick-?inspection/i.test(
         line
       )
+    ) {
+      laborTotal += price;
+      continue;
+    }
+
+    // "Spark plug replacement" / "pads R&R" without an OEM → labor, not a part
+    if (
+      /\b(replacement|r\s*&\s*r|r\s*\/\s*r)\b/i.test(line) &&
+      !extractOem(line) &&
+      !/\b(kit|set|pair|assy|assembly)\b/i.test(line)
     ) {
       laborTotal += price;
       continue;

@@ -6,21 +6,26 @@ export function CatalogPartImage({
   name,
   category,
   imageUrl,
+  className,
+  sizes = "(max-width: 640px) 100vw, 25vw",
 }: {
   name: string;
   category: string;
   imageUrl?: string | null;
+  /** Override container (e.g. thumbnail on results). Default: catalog card hero. */
+  className?: string;
+  sizes?: string;
 }) {
   const src = resolveCatalogImageUrl(imageUrl, category);
   return (
-    <div className="relative h-40 w-full overflow-hidden bg-secondary">
+    <div className={className ?? "relative h-40 w-full overflow-hidden bg-secondary"}>
       <Image
         src={src}
         alt={name}
         fill
         unoptimized={src.endsWith(".svg")}
         className="object-cover"
-        sizes="(max-width: 640px) 100vw, 25vw"
+        sizes={sizes}
       />
       {/* Soft fallback if image fails to paint */}
       <div className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center">
