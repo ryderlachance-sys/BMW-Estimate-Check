@@ -33,7 +33,7 @@ export async function addToCart(catalogPartId: string, quantity = 1): Promise<vo
   revalidatePath("/catalog");
 }
 
-/** Adds every AI-recommended part from an estimate's comparisons to the cart. */
+/** Replaces the cart with every matched part from an estimate (exact quantities). */
 export async function addAllFromEstimate(estimateId: string): Promise<void> {
   const user = await ensureUser();
   const estimate = await db.estimate.findUniqueOrThrow({
@@ -43,20 +43,31 @@ export async function addAllFromEstimate(estimateId: string): Promise<void> {
   if (estimate.userId !== user.id && !user.isAdmin) throw new Error("Forbidden");
 
   const cart = await getOrCreateCart();
+
+  // Sum quantities when the same catalog part matches multiple estimate lines
+  // (e.g. two turbo coolant lines → qty 2 of one SKU).
+  const qtyByPart = new Map<string, number>();
   for (const comparison of estimate.comparisons) {
     const quantity = comparison.estimateItem?.quantity ?? 1;
-    await db.cartItem.upsert({
-      where: {
-        cartId_catalogPartId: {
-          cartId: cart.id,
-          catalogPartId: comparison.catalogPartId,
-        },
-      },
-      update: { quantity },
-      create: { cartId: cart.id, catalogPartId: comparison.catalogPartId, quantity },
+    qtyByPart.set(
+      comparison.catalogPartId,
+      (qtyByPart.get(comparison.catalogPartId) ?? 0) + quantity
+    );
+  }
+
+  // Clear leftover items from other estimates so checkout matches the savings shown.
+  await db.cartItem.deleteMany({ where: { cartId: cart.id } });
+  if (qtyByPart.size > 0) {
+    await db.cartItem.createMany({
+      data: [...qtyByPart.entries()].map(([catalogPartId, quantity]) => ({
+        cartId: cart.id,
+        catalogPartId,
+        quantity,
+      })),
     });
   }
   revalidatePath("/cart");
+  revalidatePath("/checkout");
 }
 
 export async function updateCartItemQuantity(

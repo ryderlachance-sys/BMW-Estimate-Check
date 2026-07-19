@@ -45,7 +45,11 @@ function parseAppointmentDate(value: string): Date {
 }
 
 function appUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000")
+    .replace(/\\r\\n/g, "")
+    .replace(/[\r\n]+/g, "")
+    .trim()
+    .replace(/\/$/, "");
 }
 
 /**

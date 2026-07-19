@@ -35,7 +35,11 @@ export type ProcurementPayload = {
 };
 
 function appUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000")
+    .replace(/\\r\\n/g, "")
+    .replace(/[\r\n]+/g, "")
+    .trim()
+    .replace(/\/$/, "");
 }
 
 function rockAutoUrl(oem: string | null, fallbackQuery: string): string {
