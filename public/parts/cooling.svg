@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="640" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1a2332"/><stop offset="1" stop-color="#0d1219"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <circle cx="320" cy="180" r="70" fill="#2a3548" stroke="#4da3dd" stroke-width="3"/>
+  <circle cx="320" cy="180" r="28" fill="#3d4d66"/>
+  <path d="M320 110v-30M320 280v-30M250 180h-30M420 180h-30" stroke="#4da3dd" stroke-width="6" stroke-linecap="round"/>
+  <text x="320" y="340" text-anchor="middle" fill="#9fb3c8" font-family="system-ui,sans-serif" font-size="22" font-weight="600">Cooling</text>
+</svg>

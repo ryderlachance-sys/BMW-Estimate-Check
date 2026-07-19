@@ -5,8 +5,9 @@ import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { AddToCartButton, CatalogFilters } from "@/components/catalog-controls";
+import { CatalogPartImage } from "@/components/catalog-part-image";
 import { AffiliateBuyButtons } from "@/components/affiliate-links";
-import { buildAffiliateLinks } from "@/lib/affiliates";
+import { bestBuyForPart } from "@/lib/affiliates";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -122,10 +123,11 @@ export default async function CatalogPage({
             const stock = stockBadge[part.stockStatus];
             return (
               <Card key={part.id} className="flex flex-col overflow-hidden transition-shadow hover:shadow-lg">
-                <div className="flex h-36 items-center justify-center bg-secondary">
-                  {/* Part image placeholder — swap for real product photography */}
-                  <Cog className="size-12 text-muted-foreground/40" />
-                </div>
+                <CatalogPartImage
+                  name={part.name}
+                  category={part.category}
+                  imageUrl={part.imageUrl}
+                />
                 <CardContent className="flex flex-1 flex-col p-5">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-xs font-bold uppercase tracking-wide text-primary">
@@ -150,12 +152,15 @@ export default async function CatalogPage({
                     </p>
                     <div className="mt-3 space-y-2">
                       <AffiliateBuyButtons
-                        links={buildAffiliateLinks({
-                          brand: part.brand,
-                          name: part.name,
-                          oemNumbers: part.oemNumbers,
-                        })}
+                        links={[
+                          bestBuyForPart({
+                            brand: part.brand,
+                            name: part.name,
+                            oemNumbers: part.oemNumbers,
+                          }),
+                        ]}
                         compact
+                        primaryId={undefined}
                       />
                       <AddToCartButton
                         partId={part.id}
