@@ -342,16 +342,16 @@ export function CheckoutForm({
             : "Placing your order…"
           : stripeEnabled
             ? destination === "MECHANIC"
-              ? "Pay & ship to my mechanic"
-              : "Pay with card"
+              ? "Pay for all parts — ship to mechanic"
+              : "Pay for all parts"
             : destination === "MECHANIC"
               ? "Confirm mechanic delivery"
               : "Place order"}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
         {stripeEnabled
-          ? "You'll enter your card on Stripe's secure checkout. Stripe is free to set up — they only take a small fee when a payment succeeds (~2.9% + $0.30)."
-          : "Demo mode: no Stripe keys in .env yet, so no card is charged. Add free test keys from dashboard.stripe.com to take real (or test) payments."}
+          ? "One payment covers every part in your cart. You'll enter your card on Stripe's secure page."
+          : "Demo mode: no Stripe keys yet, so no card is charged. Add keys from dashboard.stripe.com to take real payments."}
       </p>
     </form>
   );

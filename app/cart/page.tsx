@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { QuantityControls, RemoveItemButton } from "@/components/cart-controls";
-import { bestBuyForPart } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
 
@@ -39,59 +38,42 @@ export default async function CartPage() {
     );
   }
 
-  const lines = cart.items.map((item) => {
-    const best = bestBuyForPart({
-      brand: item.catalogPart.brand,
-      name: item.catalogPart.name,
-      oemNumbers: item.catalogPart.oemNumbers,
-    });
-    return {
-      id: item.id,
-      name: item.catalogPart.name,
-      store: best.label,
-      brand: item.catalogPart.brand,
-      price: item.catalogPart.price,
-      quantity: item.quantity,
-    };
-  });
-
-  const subtotal = round2(lines.reduce((s, i) => s + i.price * i.quantity, 0));
+  const subtotal = round2(
+    cart.items.reduce((s, i) => s + i.catalogPart.price * i.quantity, 0)
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Your cart</h1>
       <p className="mt-2 text-muted-foreground">
-        Review your parts, then checkout on this site. You&apos;ll finish each purchase at the
-        best retailer we picked — they ship to you, and we earn a commission.
+        {cart.items.length} part{cart.items.length === 1 ? "" : "s"} ready — checkout once and
+        pay for everything on this site.
       </p>
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          {cart.items.map((item, idx) => {
-            const line = lines[idx];
-            return (
-              <Card key={item.id}>
-                <CardContent className="flex items-center gap-4 p-4 sm:p-5">
-                  <div className="hidden size-16 shrink-0 items-center justify-center rounded-lg bg-secondary sm:flex">
-                    <Cog className="size-7 text-muted-foreground/40" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                      {item.catalogPart.brand}
-                    </p>
-                    <p className="truncate font-semibold">{item.catalogPart.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Best via {line.store} · {formatCurrency(item.catalogPart.price)} each
-                    </p>
-                  </div>
-                  <QuantityControls itemId={item.id} quantity={item.quantity} />
-                  <p className="w-24 text-right font-bold tabular-nums">
-                    {formatCurrency(round2(item.catalogPart.price * item.quantity))}
+          {cart.items.map((item) => (
+            <Card key={item.id}>
+              <CardContent className="flex items-center gap-4 p-4 sm:p-5">
+                <div className="hidden size-16 shrink-0 items-center justify-center rounded-lg bg-secondary sm:flex">
+                  <Cog className="size-7 text-muted-foreground/40" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold uppercase tracking-wide text-primary">
+                    {item.catalogPart.brand}
                   </p>
-                  <RemoveItemButton itemId={item.id} />
-                </CardContent>
-              </Card>
-            );
-          })}
+                  <p className="truncate font-semibold">{item.catalogPart.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatCurrency(item.catalogPart.price)} each
+                  </p>
+                </div>
+                <QuantityControls itemId={item.id} quantity={item.quantity} />
+                <p className="w-24 text-right font-bold tabular-nums">
+                  {formatCurrency(round2(item.catalogPart.price * item.quantity))}
+                </p>
+                <RemoveItemButton itemId={item.id} />
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         <Card className="h-fit lg:sticky lg:top-24">
@@ -100,23 +82,25 @@ export default async function CartPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Parts (est.)</span>
+              <span className="text-muted-foreground">
+                {cart.items.length} part{cart.items.length === 1 ? "" : "s"}
+              </span>
               <span className="font-semibold tabular-nums">{formatCurrency(subtotal)}</span>
             </div>
             <Separator />
             <div className="flex justify-between text-base">
-              <span className="font-bold">Est. total</span>
+              <span className="font-bold">Subtotal</span>
               <span className="font-extrabold tabular-nums">{formatCurrency(subtotal)}</span>
             </div>
             <div className="space-y-2 pt-2">
               <Link href="/checkout">
                 <Button size="lg" className="h-12 w-full text-base font-bold">
-                  Checkout
+                  Checkout all {cart.items.length} parts
                 </Button>
               </Link>
               <p className="text-center text-xs text-muted-foreground">
-                Pay each retailer directly. We never charge your card for parts — we earn a
-                commission when you buy through our links.
+                One payment on this site for the whole cart. Shipping is calculated at
+                checkout.
               </p>
             </div>
           </CardContent>

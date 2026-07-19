@@ -259,7 +259,7 @@ export async function placeOrder(
       client_reference_id: order.id,
       metadata: { orderId: order.id, userId: user.id },
       success_url: `${appUrl()}/checkout/success?order=${order.id}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl()}/checkout/ship?cancelled=1`,
+      cancel_url: `${appUrl()}/checkout?cancelled=1`,
     });
 
     await db.order.update({

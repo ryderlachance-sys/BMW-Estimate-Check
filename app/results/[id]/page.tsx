@@ -182,8 +182,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           className="h-14 w-full text-base font-bold"
         />
         <p className="text-center text-xs text-muted-foreground">
-          Add all → checkout on this site. You finish buying at the best stores we pick;
-          they ship to you and we earn a commission.
+          Add all parts to your cart, then pay once on this site for the whole order.
         </p>
       </div>
 
