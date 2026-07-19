@@ -1,8 +1,8 @@
 /**
  * Affiliate / referral links for real retailers.
  *
- * Money path #1: shoppers click these, buy on Amazon/eBay/FCP/RockAuto,
- * and those programs pay you a commission when your IDs are in env.
+ * Money path: shoppers buy on Amazon/eBay/FCP via your tagged links.
+ * We auto-pick one best store per part so the UI stays one-button simple.
  */
 
 export type AffiliateLink = {
@@ -78,7 +78,7 @@ function withEbayCampid(url: string): string {
   return `${url}${sep}mkcid=1&mkrid=711-53200-19255-0&siteid=0&campid=${encodeURIComponent(campid)}&toolid=10001&mkevt=1`;
 }
 
-/** Build buy links — Amazon first (your commission), RockAuto second (usually cheapest). */
+/** Build buy links for all retailers. */
 export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
   const oem = firstOem(q);
   const amazonQ = encodeURIComponent(amazonSearchQuery(q));
@@ -123,6 +123,75 @@ export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
   });
 
   return links;
+}
+
+/**
+ * Pick one store per part: balance price, reliability, and whether you earn
+ * a commission. Customer never chooses — one cart, one buy flow.
+ */
+export function pickBestAffiliateLink(
+  links: AffiliateLink[],
+  opts?: { brand?: string; partName?: string }
+): AffiliateLink {
+  const programs = affiliateProgramsConfigured();
+  const brand = (opts?.brand ?? "").toLowerCase();
+  const name = (opts?.partName ?? "").toLowerCase();
+
+  const premiumBrand =
+    brand.includes("genuine") ||
+    brand.includes("pierburg") ||
+    brand.includes("bosch") ||
+    brand.includes("mahle") ||
+    brand.includes("brembo") ||
+    brand.includes("ngk") ||
+    brand.includes("elring");
+  const safetyPart = /brake|rotor|pad|sensor|plug|gasket|housing|pump/.test(name);
+
+  const scores: Record<string, { cheap: number; reliable: number; commission: number }> = {
+    rockauto: { cheap: 1, reliable: 0.72, commission: 0 },
+    amazon: {
+      cheap: 0.58,
+      reliable: 0.88,
+      commission: programs.amazon ? 1 : 0.15,
+    },
+    fcpeuro: {
+      cheap: 0.48,
+      reliable: 1,
+      commission: programs.fcpEuro ? 0.85 : 0.1,
+    },
+    ebay: {
+      cheap: 0.72,
+      reliable: 0.42,
+      commission: programs.ebay ? 1 : 0.1,
+    },
+  };
+
+  let best = links[0];
+  let bestScore = -1;
+  for (const link of links) {
+    const s = scores[link.id] ?? { cheap: 0.5, reliable: 0.5, commission: 0 };
+    let reliableW = 0.35;
+    let cheapW = 0.35;
+    let commissionW = 0.3;
+    if (premiumBrand || safetyPart) {
+      reliableW = 0.45;
+      cheapW = 0.25;
+      commissionW = 0.3;
+    }
+    const score = cheapW * s.cheap + reliableW * s.reliable + commissionW * s.commission;
+    if (score > bestScore) {
+      bestScore = score;
+      best = link;
+    }
+  }
+  return best;
+}
+
+export function bestBuyForPart(q: PartAffiliateQuery): AffiliateLink {
+  return pickBestAffiliateLink(buildAffiliateLinks(q), {
+    brand: q.brand,
+    partName: q.name,
+  });
 }
 
 export function affiliateProgramsConfigured(): {

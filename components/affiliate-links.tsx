@@ -6,86 +6,61 @@ import { Button } from "@/components/ui/button";
 import type { AffiliateLink } from "@/lib/affiliates";
 import { cn } from "@/lib/utils";
 
-export type ShopAllPart = {
+export type CartBuyLine = {
   id: string;
   name: string;
-  /** Retailer id → buy URL (amazon, ebay, rockauto, fcpeuro, …) */
-  urls: Record<string, string>;
+  store: string;
+  url: string;
 };
 
-const STORES: { id: string; label: string }[] = [
-  { id: "amazon", label: "Amazon" },
-  { id: "ebay", label: "eBay" },
-  { id: "rockauto", label: "RockAuto" },
-  { id: "fcpeuro", label: "FCP Euro" },
-];
+/** One click → full list of auto-picked store links for every cart line. */
+export function BuyAllCartParts({ lines }: { lines: CartBuyLine[] }) {
+  const [open, setOpen] = useState(false);
 
-/**
- * Pick a store, then open every part on that store.
- * Browsers block multi-popups — we show every link so nothing gets skipped.
- */
-export function ShopAllParts({ parts }: { parts: ShopAllPart[] }) {
-  const [storeId, setStoreId] = useState<string | null>(null);
-
-  if (parts.length === 0) return null;
-
-  const store = STORES.find((s) => s.id === storeId) ?? null;
-  const linksForStore = store
-    ? parts
-        .map((p) => ({ id: p.id, name: p.name, url: p.urls[store.id] }))
-        .filter((p): p is { id: string; name: string; url: string } => Boolean(p.url))
-    : [];
+  if (lines.length === 0) return null;
 
   return (
     <div className="space-y-3">
-      <p className="text-center text-sm font-semibold">Buy all {parts.length} parts on</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {STORES.map((s) => (
-          <Button
-            key={s.id}
-            type="button"
-            size="lg"
-            variant={storeId === s.id ? "default" : "outline"}
-            className="h-12 font-semibold"
-            onClick={() => setStoreId(s.id)}
-          >
-            {s.label}
-          </Button>
-        ))}
-      </div>
-
-      {store && (
-        <div className="rounded-2xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">
-            Open each part on {store.label} — they ship; you don&apos;t handle inventory.
-          </p>
-          <ol className="mt-3 space-y-2">
-            {linksForStore.map((p, i) => (
-              <li key={p.id}>
-                <a
-                  href={p.url}
-                  target="_blank"
-                  rel="noopener noreferrer sponsored"
-                  className="flex items-center justify-between gap-2 rounded-xl border px-3 py-3 text-sm font-semibold hover:border-primary hover:bg-accent"
-                >
-                  <span className="min-w-0 truncate">
-                    {i + 1}. {p.name}
-                  </span>
-                  <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
-                    Open
-                    <ExternalLink className="size-3.5" />
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ol>
-        </div>
+      <Button
+        type="button"
+        size="lg"
+        className="h-12 w-full text-base font-bold"
+        onClick={() => {
+          setOpen(true);
+          window.open(lines[0].url, "_blank", "noopener,noreferrer");
+        }}
+      >
+        Buy all {lines.length} parts
+      </Button>
+      <p className="text-center text-xs text-muted-foreground">
+        We already picked the best store for each part. They ship to you — we earn a small
+        commission.
+      </p>
+      {open && (
+        <ol className="space-y-2 rounded-xl border bg-card p-3 text-left">
+          {lines.map((line, i) => (
+            <li key={line.id}>
+              <a
+                href={line.url}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold hover:border-primary hover:bg-accent"
+              >
+                <span className="min-w-0 truncate">
+                  {i + 1}. {line.name}
+                  <span className="ml-1 font-normal text-muted-foreground">via {line.store}</span>
+                </span>
+                <ExternalLink className="size-3.5 shrink-0 text-primary" />
+              </a>
+            </li>
+          ))}
+        </ol>
       )}
     </div>
   );
 }
 
-/** Per-part retailer buy buttons. */
+/** Per-part retailer buy buttons (optional secondary). */
 export function AffiliateBuyButtons({
   links,
   compact = false,
@@ -93,7 +68,6 @@ export function AffiliateBuyButtons({
 }: {
   links: AffiliateLink[];
   compact?: boolean;
-  /** Optional: highlight one retailer. Default: none preferred. */
   primaryId?: string;
 }) {
   return (
