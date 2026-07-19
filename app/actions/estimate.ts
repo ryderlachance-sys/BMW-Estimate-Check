@@ -8,10 +8,47 @@ import { db } from "@/lib/db";
 import { ensureUser } from "@/lib/auth";
 import { extractTextFromFile, getImageForAi } from "@/lib/ai/extract-text";
 import { hasAiConfigured, parseEstimate } from "@/lib/ai/parse-estimate";
-import { parseEstimateHeuristically } from "@/lib/ai/heuristic-parser";
+import { parseEstimateHeuristically, extractVehicleFromText } from "@/lib/ai/heuristic-parser";
 import type { ParsedEstimate } from "@/lib/ai/schema";
 import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
+
+function isLaborJunkLine(description: string): boolean {
+  return /job\s*t[ui]me|without\s+allowance|fuel\s+conditioning|fuel\s+tank|fuel\s+delivery|fr[uil]\b|998729|monsoon|wrong\s+fuel|electrical\s+system|quick-?inspection|sum\s+labor/i.test(
+    description
+  );
+}
+
+/** Prefer labeled ###i / G32 reads over logo OCR that invents "iX". */
+function mergeVehicleFromText(
+  parsed: ParsedEstimate,
+  text: string | null
+): ParsedEstimate {
+  if (!text) return parsed;
+  const fromText = extractVehicleFromText(text);
+  const aiModel = parsed.vehicle.model?.toLowerCase() ?? "";
+  const textModel = fromText.model?.toLowerCase() ?? "";
+
+  let year = fromText.year ?? parsed.vehicle.year;
+  let model = fromText.model ?? parsed.vehicle.model;
+  let engine = fromText.engine ?? parsed.vehicle.engine;
+
+  // Never keep logo-OCR iX when the estimate clearly has a series model
+  if (aiModel === "ix" && textModel && textModel !== "ix") {
+    model = fromText.model;
+    year = fromText.year ?? year;
+  }
+  if (model?.toLowerCase() === "ix" && /63[0h]?\s*m\s*sport|\bG32\b|\b630i\b/i.test(text)) {
+    model = fromText.model ?? "630i";
+    year = fromText.year ?? year;
+  }
+
+  return {
+    ...parsed,
+    vehicle: { year, model, engine },
+    parts: parsed.parts.filter((p) => !isLaborJunkLine(p.description)),
+  };
+}
 
 const CreateEstimateSchema = z.object({
   fileUrl: z
@@ -154,6 +191,8 @@ export async function processEstimate(estimateId: string): Promise<void> {
     } else {
       throw new Error("Could not read any text from this file.");
     }
+
+    result = mergeVehicleFromText(result, text);
 
     // Prefer vehicle printed on the estimate; if missing, keep Pending and ask the user.
     const detectedYear = result.vehicle.year;

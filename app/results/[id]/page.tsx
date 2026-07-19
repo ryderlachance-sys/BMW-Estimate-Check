@@ -119,7 +119,13 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
 
   if (comparisons.length === 0) {
     const laborOnly =
-      estimate.errorMessage === "NO_PARTS" || estimate.items.length === 0;
+      estimate.errorMessage === "NO_PARTS" ||
+      estimate.items.length === 0 ||
+      estimate.items.every((i) =>
+        /job\s*t[ui]me|without\s+allowance|fuel\s+conditioning|998729|fr[uil]\b/i.test(
+          i.description
+        )
+      );
     const catalogHref = `/catalog?model=${encodeURIComponent(estimate.vehicle.model)}&year=${estimate.vehicle.year}`;
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
