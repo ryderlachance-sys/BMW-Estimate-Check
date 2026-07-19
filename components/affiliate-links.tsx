@@ -1,66 +1,80 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, ShoppingBag } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AffiliateLink } from "@/lib/affiliates";
 import { cn } from "@/lib/utils";
 
-export type BuyAllPart = {
+export type ShopAllPart = {
   id: string;
   name: string;
-  amazonUrl: string;
+  /** Retailer id → buy URL (amazon, ebay, rockauto, fcpeuro, …) */
+  urls: Record<string, string>;
 };
 
+const STORES: { id: string; label: string }[] = [
+  { id: "amazon", label: "Amazon" },
+  { id: "ebay", label: "eBay" },
+  { id: "rockauto", label: "RockAuto" },
+  { id: "fcpeuro", label: "FCP Euro" },
+];
+
 /**
- * Primary money path: customer buys on Amazon (they ship).
- * You earn affiliate commission — you never buy or mail parts.
+ * Pick a store, then open every part on that store.
+ * Browsers block multi-popups — we show every link so nothing gets skipped.
  */
-export function BuyAllOnAmazonButton({
-  parts,
-  className,
-}: {
-  parts: BuyAllPart[];
-  className?: string;
-}) {
-  const [started, setStarted] = useState(false);
+export function ShopAllParts({ parts }: { parts: ShopAllPart[] }) {
+  const [storeId, setStoreId] = useState<string | null>(null);
 
   if (parts.length === 0) return null;
 
+  const store = STORES.find((s) => s.id === storeId) ?? null;
+  const linksForStore = store
+    ? parts
+        .map((p) => ({ id: p.id, name: p.name, url: p.urls[store.id] }))
+        .filter((p): p is { id: string; name: string; url: string } => Boolean(p.url))
+    : [];
+
   return (
     <div className="space-y-3">
-      <Button
-        type="button"
-        size="lg"
-        className={cn("h-14 w-full text-base font-bold", className)}
-        onClick={() => {
-          setStarted(true);
-          // Browsers only allow one popup per click — open the first, list the rest.
-          window.open(parts[0].amazonUrl, "_blank", "noopener,noreferrer");
-        }}
-      >
-        <ShoppingBag className="size-5" />
-        Buy all {parts.length} parts on Amazon
-      </Button>
-      <p className="text-center text-xs text-muted-foreground">
-        Amazon ships to them. You earn a commission — no inventory, no packing.
-      </p>
-      {started && parts.length > 1 && (
-        <div className="rounded-2xl border bg-card p-4 text-left">
-          <p className="text-sm font-semibold">Opened part 1 — tap the rest:</p>
+      <p className="text-center text-sm font-semibold">Buy all {parts.length} parts on</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {STORES.map((s) => (
+          <Button
+            key={s.id}
+            type="button"
+            size="lg"
+            variant={storeId === s.id ? "default" : "outline"}
+            className="h-12 font-semibold"
+            onClick={() => setStoreId(s.id)}
+          >
+            {s.label}
+          </Button>
+        ))}
+      </div>
+
+      {store && (
+        <div className="rounded-2xl border bg-card p-4">
+          <p className="text-sm text-muted-foreground">
+            Open each part on {store.label} — they ship; you don&apos;t handle inventory.
+          </p>
           <ol className="mt-3 space-y-2">
-            {parts.map((p, i) => (
+            {linksForStore.map((p, i) => (
               <li key={p.id}>
                 <a
-                  href={p.amazonUrl}
+                  href={p.url}
                   target="_blank"
                   rel="noopener noreferrer sponsored"
-                  className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-secondary"
+                  className="flex items-center justify-between gap-2 rounded-xl border px-3 py-3 text-sm font-semibold hover:border-primary hover:bg-accent"
                 >
                   <span className="min-w-0 truncate">
                     {i + 1}. {p.name}
                   </span>
-                  <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
+                    Open
+                    <ExternalLink className="size-3.5" />
+                  </span>
                 </a>
               </li>
             ))}
@@ -75,17 +89,17 @@ export function BuyAllOnAmazonButton({
 export function AffiliateBuyButtons({
   links,
   compact = false,
-  primaryId = "amazon",
+  primaryId,
 }: {
   links: AffiliateLink[];
   compact?: boolean;
-  /** Which retailer gets the filled primary style */
+  /** Optional: highlight one retailer. Default: none preferred. */
   primaryId?: string;
 }) {
   return (
     <div className={compact ? "flex flex-wrap gap-1.5" : "flex flex-wrap gap-2"}>
       {links.map((link) => {
-        const isPrimary = link.id === primaryId;
+        const isPrimary = primaryId != null && link.id === primaryId;
         return (
           <a
             key={link.id}

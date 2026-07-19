@@ -7,7 +7,7 @@ import { ensureUser } from "@/lib/auth";
 import { formatCurrency, round2 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ProcessingPoller, RetryParseButton } from "@/components/results-actions";
-import { AffiliateBuyButtons, BuyAllOnAmazonButton } from "@/components/affiliate-links";
+import { AffiliateBuyButtons, ShopAllParts } from "@/components/affiliate-links";
 import { buildAffiliateLinks } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
@@ -88,7 +88,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
     return {
       id: c.id,
       name: c.catalogPart.name,
-      amazonUrl: links.find((l) => l.id === "amazon")!.url,
+      urls: Object.fromEntries(links.map((l) => [l.id, l.url])),
       links,
       qty: c.estimateItem?.quantity ?? 1,
       mechanicPrice: c.mechanicPrice,
@@ -110,7 +110,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           We couldn&apos;t match those parts yet
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Upload a clearer photo or the shop PDF so we can show your savings and Amazon buy links.
+          Upload a clearer photo or the shop PDF so we can show your savings and buy links.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <RetryParseButton estimateId={estimate.id} />
@@ -142,7 +142,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="mt-8">
-        <BuyAllOnAmazonButton parts={buyParts} />
+        <ShopAllParts parts={buyParts} />
       </div>
 
       <ul className="mt-10 space-y-3">
