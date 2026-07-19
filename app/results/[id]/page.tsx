@@ -6,12 +6,8 @@ import { db } from "@/lib/db";
 import { ensureUser } from "@/lib/auth";
 import { formatCurrency, round2 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  AddAllToCartButton,
-  ProcessingPoller,
-  RetryParseButton,
-} from "@/components/results-actions";
-import { AffiliateBuyButtons } from "@/components/affiliate-links";
+import { ProcessingPoller, RetryParseButton } from "@/components/results-actions";
+import { AffiliateBuyButtons, BuyAllOnAmazonButton } from "@/components/affiliate-links";
 import { buildAffiliateLinks } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +75,29 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
     estimate.vehicle.engine ? ` · ${estimate.vehicle.engine}` : ""
   }`;
 
+  const buyParts = comparisons.map((c) => {
+    const links = buildAffiliateLinks({
+      brand: c.catalogPart.brand,
+      name: c.catalogPart.name,
+      oemNumbers: c.catalogPart.oemNumbers,
+      oemPartNumber: c.estimateItem?.oemPartNumber,
+      year: estimate.vehicle.year,
+      model: estimate.vehicle.model,
+      engine: estimate.vehicle.engine,
+    });
+    return {
+      id: c.id,
+      name: c.catalogPart.name,
+      amazonUrl: links.find((l) => l.id === "amazon")!.url,
+      links,
+      qty: c.estimateItem?.quantity ?? 1,
+      mechanicPrice: c.mechanicPrice,
+      ourPrice: c.ourPrice,
+      savings: c.savings,
+      brand: c.catalogPart.brand,
+    };
+  });
+
   // No usable matches — keep it short, don't dump garbage OCR lines.
   if (comparisons.length === 0) {
     return (
@@ -91,7 +110,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           We couldn&apos;t match those parts yet
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Upload a clearer photo or the shop PDF so we can show your savings and add parts to cart.
+          Upload a clearer photo or the shop PDF so we can show your savings and Amazon buy links.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <RetryParseButton estimateId={estimate.id} />
@@ -122,60 +141,40 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         </p>
       </div>
 
-      <div className="mt-8 space-y-3">
-        <AddAllToCartButton
-          estimateId={estimate.id}
-          count={comparisons.length}
-          variant="default"
-          className="h-14 w-full text-base font-bold"
-        />
-        <p className="text-center text-xs text-muted-foreground">
-          One click — all matched parts go to your cart at the online price.
-        </p>
+      <div className="mt-8">
+        <BuyAllOnAmazonButton parts={buyParts} />
       </div>
 
       <ul className="mt-10 space-y-3">
-        {comparisons.map((c) => {
-          const links = buildAffiliateLinks({
-            brand: c.catalogPart.brand,
-            name: c.catalogPart.name,
-            oemNumbers: c.catalogPart.oemNumbers,
-            oemPartNumber: c.estimateItem?.oemPartNumber,
-            year: estimate.vehicle.year,
-            model: estimate.vehicle.model,
-            engine: estimate.vehicle.engine,
-          });
-          const qty = c.estimateItem?.quantity ?? 1;
-          return (
-            <li key={c.id} className="rounded-2xl border bg-card px-4 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-bold leading-snug">
-                    {c.catalogPart.name}
-                    {qty > 1 ? ` ×${qty}` : ""}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{c.catalogPart.brand}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm tabular-nums text-muted-foreground line-through">
-                    {formatCurrency(c.mechanicPrice)}
-                  </p>
-                  <p className="text-lg font-extrabold tabular-nums text-primary">
-                    {formatCurrency(c.ourPrice)}
-                  </p>
-                  {c.savings > 0 && (
-                    <p className="text-xs font-semibold text-success">
-                      Save {formatCurrency(c.savings)}
-                    </p>
-                  )}
-                </div>
+        {buyParts.map((p) => (
+          <li key={p.id} className="rounded-2xl border bg-card px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-bold leading-snug">
+                  {p.name}
+                  {p.qty > 1 ? ` ×${p.qty}` : ""}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{p.brand}</p>
               </div>
-              <div className="mt-3">
-                <AffiliateBuyButtons links={links} compact />
+              <div className="shrink-0 text-right">
+                <p className="text-sm tabular-nums text-muted-foreground line-through">
+                  {formatCurrency(p.mechanicPrice)}
+                </p>
+                <p className="text-lg font-extrabold tabular-nums text-primary">
+                  {formatCurrency(p.ourPrice)}
+                </p>
+                {p.savings > 0 && (
+                  <p className="text-xs font-semibold text-success">
+                    Save {formatCurrency(p.savings)}
+                  </p>
+                )}
               </div>
-            </li>
-          );
-        })}
+            </div>
+            <div className="mt-3">
+              <AffiliateBuyButtons links={p.links} compact />
+            </div>
+          </li>
+        ))}
       </ul>
 
       <div className="mt-10 text-center">
