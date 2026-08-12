@@ -13,7 +13,12 @@ import type { ParsedEstimate } from "@/lib/ai/schema";
 import { scanEstimateKeywords } from "@/lib/ai/keyword-scanner";
 import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
-import { decodeVin, extractAndDecodeVin, extractVinFromText } from "@/lib/vin";
+import {
+  decodeVin,
+  extractAndDecodeVin,
+  extractVinFromText,
+  isTrustworthyVinDecode,
+} from "@/lib/vin";
 import { normalizeMake } from "@/lib/vehicles";
 
 function isLaborJunkLine(description: string): boolean {
@@ -250,29 +255,34 @@ export async function processEstimate(estimateId: string): Promise<void> {
 
     result = mergeVehicleFromText(result, text ?? "");
 
-    // Prefer VIN from GPT extract, then NHTSA decode from text
+    // Prefer VIN from GPT extract, then NHTSA decode from text.
+    // Keep the VIN string even when the check digit is bad, but never let an
+    // untrustworthy NHTSA guess overwrite a labeled Vehicle: line (e.g. sample
+    // VINs that decode as a different Lexus model).
     if (result._vin) {
       // keep AI VIN
     } else if (text) {
       const decoded = await extractAndDecodeVin(text);
-      if (decoded?.vin && (decoded.year || decoded.make || decoded.model)) {
-        result = {
-          ...result,
-          vehicle: {
-            year: decoded.year ?? result.vehicle.year,
-            make: normalizeMake(decoded.make) ?? result.vehicle.make,
-            model: decoded.model ?? result.vehicle.model,
-            engine: decoded.engine ?? result.vehicle.engine,
-          },
-          _vin: decoded.vin,
-        };
+      if (decoded?.vin) {
+        result = { ...result, _vin: decoded.vin };
+        if (isTrustworthyVinDecode(decoded)) {
+          result = {
+            ...result,
+            vehicle: {
+              year: decoded.year ?? result.vehicle.year,
+              make: normalizeMake(decoded.make) ?? result.vehicle.make,
+              model: decoded.model ?? result.vehicle.model,
+              engine: decoded.engine ?? result.vehicle.engine,
+            },
+          };
+        }
       }
     }
 
-    // If GPT returned a VIN, optionally enrich year/make/model via NHTSA
+    // If GPT returned a VIN, optionally enrich missing year/make/model via NHTSA
     if (result._vin && (!result.vehicle.year || !result.vehicle.make || !result.vehicle.model)) {
       const decoded = await decodeVin(result._vin);
-      if (decoded) {
+      if (decoded && isTrustworthyVinDecode(decoded)) {
         result = {
           ...result,
           vehicle: {
@@ -475,7 +485,7 @@ export async function confirmEstimateVehicle(
 
   if (vin) {
     const decoded = await decodeVin(vin);
-    if (decoded) {
+    if (decoded && isTrustworthyVinDecode(decoded)) {
       if (decoded.year) finalYear = decoded.year;
       if (decoded.make) finalMake = normalizeMake(decoded.make) ?? finalMake;
       if (decoded.model) finalModel = decoded.model;
