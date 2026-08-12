@@ -94,3 +94,27 @@ export async function extractAndDecodeVin(text: string): Promise<VinDecode | nul
   if (!vin) return null;
   return decodeVin(vin);
 }
+
+/**
+ * Whether NHTSA year/make/model/engine should override estimate text.
+ * Invalid check digits still return a guessed vehicle — do not trust those fields.
+ */
+export function isTrustworthyVinDecode(decoded: VinDecode): boolean {
+  const hasVehicle = Boolean(decoded.year || decoded.make || decoded.model);
+  if (!hasVehicle) return false;
+
+  const err = (decoded.rawError ?? "").trim().toLowerCase();
+  if (!err) return true;
+  if (err.includes("check digit")) return false;
+  if (
+    err.startsWith("http") ||
+    err === "empty" ||
+    err.includes("decode failed") ||
+    err.includes("aborted") ||
+    err.includes("timeout")
+  ) {
+    return false;
+  }
+  // Soft NHTSA advisories (non-check-digit) can still be usable.
+  return true;
+}
