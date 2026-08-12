@@ -126,15 +126,17 @@ export function extractVehicleFromText(text: string): {
     }
   }
 
-  // Explicit "Vehicle: 2020 BMW M5" or "2020 Toyota Camry"
+  // Explicit "Vehicle: 2020 BMW M5" or "2020 Toyota Camry" / "2019 Lexus RX 350"
+  // Stop the model capture before the next labeled field (Engine, VIN, Mileage…).
   const labeled = fullText.match(
-    /(?:vehicle|veh|estimate\s+for)\s*:?\s*(19[89]\d|20[0-4]\d)\s+(?:(BMW|Toyota|Honda|Ford|Chevrolet|Nissan|Hyundai|Kia|Subaru|Mazda|Volkswagen|Audi|Lexus|Jeep|Tesla)\s+)?([A-Za-z0-9][A-Za-z0-9\s-]{1,20})\b/i
+    /(?:vehicle|veh|estimate\s+for)\s*:?\s*(19[89]\d|20[0-4]\d)\s+(?:(BMW|Toyota|Honda|Ford|Chevrolet|Nissan|Hyundai|Kia|Subaru|Mazda|Volkswagen|Audi|Lexus|Jeep|Tesla)\s+)?([A-Za-z0-9][A-Za-z0-9\s-]{1,20}?)(?=\s+(?:engine|vin|mileage|customer|complaint|parts|labor|date|estimate|#)\b|[.,;]|$)/i
   );
   if (labeled) {
     year = Number(labeled[1]);
     if (labeled[2]) make = normalizeMake(labeled[2]) ?? make;
     const cand = labeled[3].trim();
-    if (!model && cand.length >= 2) {
+    // Labeled Vehicle: line wins over earlier guesswork.
+    if (cand.length >= 2) {
       model = /^(M?\d{3}|X\d|i\d|iX)/i.test(cand)
         ? normalizeBmwModel(repairModelToken(cand.split(/\s+/)[0]))
         : cand.split(/\s+/).slice(0, 3).join(" ");
