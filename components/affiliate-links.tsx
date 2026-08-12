@@ -65,7 +65,7 @@ export function AffiliateBuyButtons({
   );
 }
 
-function FitmentInterstitial({
+export function FitmentInterstitial({
   link,
   fitment,
   onClose,

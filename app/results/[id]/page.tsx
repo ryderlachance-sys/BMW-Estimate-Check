@@ -11,10 +11,10 @@ import {
   RetryParseButton,
 } from "@/components/results-actions";
 import { ConfirmVehicleForm } from "@/components/confirm-vehicle-form";
-import { AffiliateBuyButtons } from "@/components/affiliate-links";
 import { CatalogPartImage } from "@/components/catalog-part-image";
 import { PasteEstimateFallback } from "@/components/paste-estimate-fallback";
-import { bestBuyForPart, buildAffiliateLinks } from "@/lib/affiliates";
+import { PartBuyAction } from "@/components/part-buy-action";
+import { cleanPartDisplayName, pricedAffiliateLinks } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -177,9 +177,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
               We read these lines from your estimate — buy them cheaper online below.
             </p>
           </div>
-          <ul className="mt-8 space-y-4">
+          <ul className="mt-6 space-y-2.5">
             {unmatchedItems.map((item) => {
-              const links = buildAffiliateLinks({
+              const query = {
                 brand: "",
                 name: item.description,
                 oemPartNumber: item.oemPartNumber,
@@ -187,34 +187,32 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 make: estimate.vehicle.make,
                 model: estimate.vehicle.model,
                 engine: estimate.vehicle.engine,
-              });
+              };
+              const priced = pricedAffiliateLinks(query, item.mechanicPrice * 0.55);
               return (
                 <li
                   key={item.id}
-                  className="rounded-2xl border bg-card p-4 text-left shadow-sm"
+                  className="flex flex-col gap-2.5 rounded-xl border bg-card px-3 py-2.5 text-left sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold leading-snug">{item.description}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Shop charged {formatCurrency(item.mechanicPrice)}
-                      </p>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold leading-snug">
+                      {item.description}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Shop charged {formatCurrency(item.mechanicPrice)}
+                    </p>
                   </div>
-                  <div className="mt-3">
-                    <AffiliateBuyButtons
-                      links={links}
-                      compact
-                      primaryId="rockauto"
-                      fitment={{
-                        year: estimate.vehicle.year,
-                        make: estimate.vehicle.make,
-                        model: estimate.vehicle.model,
-                        vin: estimate.vehicle.vin,
-                        partName: item.description,
-                      }}
-                    />
-                  </div>
+                  <PartBuyAction
+                    pricedLinks={priced}
+                    className="sm:w-auto sm:shrink-0"
+                    fitment={{
+                      year: estimate.vehicle.year,
+                      make: estimate.vehicle.make,
+                      model: estimate.vehicle.model,
+                      vin: estimate.vehicle.vin,
+                      partName: item.description,
+                    }}
+                  />
                 </li>
               );
             })}
@@ -279,7 +277,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         verify fitment on the retailer before buying.
       </p>
 
-      <ul className="mt-8 space-y-4">
+      <ul className="mt-6 space-y-2.5">
         {lines.map((line) => {
           const primary = line.premium ?? line.budget!;
           const tiers = [
@@ -300,12 +298,12 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           const qty = primary.estimateItem?.quantity ?? 1;
 
           return (
-            <li key={primary.id} className="rounded-2xl border bg-card px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Shop line: {shopName}
+            <li key={primary.id} className="rounded-xl border bg-card px-3 py-2.5 sm:px-3.5">
+              <p className="truncate text-[11px] font-medium text-muted-foreground">
+                Shop: {shopName}
                 {qty > 1 ? ` ×${qty}` : ""}
               </p>
-              <div className="mt-3 space-y-4">
+              <div className="mt-2 space-y-2">
                 {tiers.map(({ label, c, badge }) => {
                   const query = {
                     brand: c.catalogPart.brand,
@@ -317,8 +315,12 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                     model: estimate.vehicle.model,
                     engine: estimate.vehicle.engine,
                   };
-                  const links = buildAffiliateLinks(query);
-                  const best = bestBuyForPart(query);
+                  const priced = pricedAffiliateLinks(query, c.ourPrice);
+                  const title = cleanPartDisplayName(
+                    c.catalogPart.brand,
+                    c.catalogPart.name,
+                    { isPremium: badge === "quality" }
+                  );
                   const savingsPct =
                     c.mechanicPrice > 0
                       ? (Math.max(0, c.savings) / c.mechanicPrice) * 100
@@ -326,62 +328,48 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                   return (
                     <div
                       key={c.id}
-                      className="rounded-xl border border-dashed border-border/80 bg-secondary/30 p-3"
+                      className="flex flex-col gap-2.5 rounded-lg bg-secondary/40 px-2.5 py-2 sm:flex-row sm:items-center sm:gap-3"
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-2.5">
                         <CatalogPartImage
-                          name={c.catalogPart.name}
+                          name={title}
                           category={c.catalogPart.category}
                           imageUrl={c.catalogPart.imageUrl}
-                          className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-secondary"
-                          sizes="48px"
+                          className="relative size-10 shrink-0 overflow-hidden rounded-md bg-secondary"
+                          sizes="40px"
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-bold uppercase tracking-wide text-primary">
-                                {label}
-                              </p>
-                              <p className="font-bold leading-snug">{c.catalogPart.name}</p>
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                {c.catalogPart.brand}
-                                {badge === "quality" && c.matchMethod === "OEM_NUMBER"
-                                  ? " · OEM #"
-                                  : ""}{" "}
-                                · via {best.label}
-                              </p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <p className="text-sm tabular-nums text-muted-foreground line-through">
-                                {formatCurrency(c.mechanicPrice)}
-                              </p>
-                              <p className="text-lg font-extrabold tabular-nums text-primary">
-                                {formatCurrency(c.ourPrice)}
-                              </p>
-                              {c.savings > 0 && (
-                                <p className="text-xs font-semibold text-success">
-                                  Save {formatCurrency(c.savings)}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="mt-2.5">
-                            <AffiliateBuyButtons
-                              links={links}
-                              compact
-                              primaryId={best.id}
-                              fitment={{
-                                year: estimate.vehicle.year,
-                                make: estimate.vehicle.make,
-                                model: estimate.vehicle.model,
-                                vin: estimate.vehicle.vin,
-                                savingsPercent: savingsPct,
-                                partName: c.catalogPart.name,
-                              }}
-                            />
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-primary">
+                            {label}
+                          </p>
+                          <p className="truncate text-sm font-bold leading-snug">{title}</p>
+                          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                            <span className="text-xs tabular-nums text-muted-foreground line-through">
+                              {formatCurrency(c.mechanicPrice)}
+                            </span>
+                            <span className="text-sm font-extrabold tabular-nums text-primary">
+                              {formatCurrency(c.ourPrice)}
+                            </span>
+                            {c.savings > 0 && (
+                              <span className="text-[11px] font-semibold text-success">
+                                Save {formatCurrency(c.savings)}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
+                      <PartBuyAction
+                        pricedLinks={priced}
+                        className="sm:w-auto sm:shrink-0"
+                        fitment={{
+                          year: estimate.vehicle.year,
+                          make: estimate.vehicle.make,
+                          model: estimate.vehicle.model,
+                          vin: estimate.vehicle.vin,
+                          savingsPercent: savingsPct,
+                          partName: title,
+                        }}
+                      />
                     </div>
                   );
                 })}

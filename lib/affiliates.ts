@@ -207,6 +207,69 @@ export function bestBuyForPart(q: PartAffiliateQuery): AffiliateLink {
   });
 }
 
+export type PricedAffiliateLink = AffiliateLink & { estimatedPrice: number };
+
+/**
+ * Estimate relative store prices from our catalog reference price, then sort
+ * cheapest-first. Used for the single "Buy on X ($Y)" CTA.
+ */
+export function pricedAffiliateLinks(
+  q: PartAffiliateQuery,
+  catalogPrice: number
+): PricedAffiliateLink[] {
+  const base = Math.max(0.01, catalogPrice);
+  // Typical street pricing vs a catalog mid-point (not live quotes)
+  const factors: Record<string, number> = {
+    rockauto: 0.9,
+    ebay: 0.94,
+    amazon: 1.04,
+    fcpeuro: 1.1,
+  };
+  return buildAffiliateLinks(q)
+    .map((link) => ({
+      ...link,
+      estimatedPrice: Math.round(base * (factors[link.id] ?? 1) * 100) / 100,
+    }))
+    .sort((a, b) => a.estimatedPrice - b.estimatedPrice);
+}
+
+export function cheapestAffiliateLink(
+  q: PartAffiliateQuery,
+  catalogPrice: number
+): PricedAffiliateLink {
+  return pricedAffiliateLinks(q, catalogPrice)[0];
+}
+
+/** Clean card titles: "Bosch Alternator" — never leave "(Budget)" on premium rows. */
+export function cleanPartDisplayName(
+  brand: string,
+  name: string,
+  opts?: { isPremium?: boolean }
+): string {
+  let n = name
+    .replace(/\s*\(Budget\)\s*/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  // Drop vehicle suffix after em dash / dash for a short title
+  const base = n.split(/\s*[—–]\s*/)[0]?.trim() || n;
+  const brandTrim = brand?.trim() ?? "";
+  if (
+    brandTrim &&
+    !base.toLowerCase().startsWith(brandTrim.toLowerCase()) &&
+    !/^genuine\b/i.test(brandTrim)
+  ) {
+    return `${brandTrim} ${base}`.replace(/\s+/g, " ").trim();
+  }
+  if (/^genuine\b/i.test(brandTrim) && !/^genuine\b/i.test(base)) {
+    return `${brandTrim} ${base}`.replace(/\s+/g, " ").trim();
+  }
+  // Premium rows: strip any leftover budget wording
+  if (opts?.isPremium) {
+    return base.replace(/\bbudget\b/gi, "").replace(/\s+/g, " ").trim();
+  }
+  return base;
+}
+
 export function affiliateProgramsConfigured(): {
   amazon: boolean;
   ebay: boolean;
