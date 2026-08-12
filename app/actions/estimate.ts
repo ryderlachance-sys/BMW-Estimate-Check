@@ -83,12 +83,15 @@ function mergeVehicleFromText(
 const CreateEstimateSchema = z.object({
   fileUrl: z
     .string()
-    .min(1, "Please upload your estimate first")
+    .min(1, "Please upload your estimate or paste the text")
     .refine(
-      (v) => v.startsWith("/uploads/") || /^https?:\/\//.test(v),
+      (v) =>
+        v.startsWith("/uploads/") ||
+        v === "paste://estimate" ||
+        /^https?:\/\//.test(v),
       "Invalid uploaded file reference"
     ),
-  fileType: z.string().min(1, "Please upload your estimate first"),
+  fileType: z.string().min(1, "Please upload your estimate or paste the text"),
   extractedText: z.string().optional(),
 });
 
@@ -110,12 +113,12 @@ export async function createEstimate(
   }
   const data = parsed.data;
 
-  if (data.fileType.startsWith("image/") && !(data.extractedText && data.extractedText.trim().length > 10)) {
-    return {
-      error:
-        "Could not read text from that photo. Try a clearer image, or upload the estimate as a PDF.",
-    };
+  const hasPaste = Boolean(data.extractedText && data.extractedText.trim().length >= 20);
+  if (data.fileUrl === "paste://estimate" && !hasPaste) {
+    return { error: "Paste the estimate text (part names and prices) before continuing." };
   }
+
+  // Weak / empty OCR on images is OK — results page offers paste fallback.
 
   // Placeholder — year/model/engine are filled from the estimate during processEstimate.
   const vehicle = await db.vehicle.create({
@@ -177,6 +180,7 @@ export async function processEstimate(estimateId: string): Promise<void> {
 
   try {
     const isImage = estimate.originalFileType.startsWith("image/");
+    const isPasteOnly = estimate.originalFileType === "text/plain" || estimate.originalFileUrl === "paste://estimate";
     let text: string | null = estimate.extractedText
       ? repairOcrText(estimate.extractedText)
       : null;
@@ -184,7 +188,7 @@ export async function processEstimate(estimateId: string): Promise<void> {
     const clientScore = text ? ocrQualityScore(text) : 0;
     // Prefer solid browser OCR. If it's weak (or missing), try server extraction
     // (works locally; may fail on Vercel — then we keep client text).
-    if (!text || text.trim().length < 10 || (isImage && clientScore < 40)) {
+    if (!isPasteOnly && (!text || text.trim().length < 10 || (isImage && clientScore < 40))) {
       try {
         const extracted = await extractTextFromFile(
           estimate.originalFileUrl,
@@ -203,6 +207,18 @@ export async function processEstimate(estimateId: string): Promise<void> {
     }
 
     if (text) text = repairOcrText(text);
+
+    if (!text || text.trim().length < 12) {
+      await db.estimate.update({
+        where: { id: estimateId },
+        data: {
+          extractedText: text,
+          status: "FAILED",
+          errorMessage: "OCR_EMPTY",
+        },
+      });
+      return;
+    }
 
     let result: ParsedEstimate;
     if (hasAiConfigured()) {
@@ -319,11 +335,61 @@ export async function processEstimate(estimateId: string): Promise<void> {
 }
 
 /** Re-run parsing for a failed or weak estimate (applies latest OCR repairs). */
-export async function retryEstimate(estimateId: string): Promise<void> {
+export async function retryEstimate(
+  estimateId: string,
+  opts?: { clearExtractedText?: boolean }
+): Promise<void> {
   const user = await ensureUser();
   const estimate = await db.estimate.findUniqueOrThrow({ where: { id: estimateId } });
   if (estimate.userId !== user.id && !user.isAdmin) throw new Error("Forbidden");
+
+  if (opts?.clearExtractedText) {
+    await db.estimate.update({
+      where: { id: estimateId },
+      data: {
+        extractedText: null,
+        errorMessage: null,
+        status: "PARSED",
+      },
+    });
+    await db.estimateItem.deleteMany({ where: { estimateId } });
+    revalidatePath(`/results/${estimateId}`);
+    return;
+  }
+
   await processEstimate(estimateId);
+}
+
+/**
+ * User pasted estimate text after OCR / image resolution failed.
+ * Runs the local keyword scanner + heuristic parse on the pasted text.
+ */
+export async function reparseWithPastedText(
+  estimateId: string,
+  pastedText: string
+): Promise<{ error?: string }> {
+  const user = await ensureUser();
+  const estimate = await db.estimate.findUniqueOrThrow({ where: { id: estimateId } });
+  if (estimate.userId !== user.id && !user.isAdmin) throw new Error("Forbidden");
+
+  const text = pastedText.trim();
+  if (text.length < 20) {
+    return { error: "Paste more of the estimate — include part names and prices." };
+  }
+
+  await db.estimate.update({
+    where: { id: estimateId },
+    data: {
+      extractedText: text,
+      errorMessage: null,
+      status: "PROCESSING",
+    },
+  });
+
+  await processEstimate(estimateId);
+  revalidatePath(`/results/${estimateId}`);
+  revalidatePath("/catalog");
+  return {};
 }
 
 /** Customer fills year/make/model when the estimate didn't print them clearly. */

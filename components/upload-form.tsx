@@ -14,16 +14,25 @@ export function UploadForm() {
     null
   );
   const [file, setFile] = useState<UploadedFile | null>(null);
+  const [pasteText, setPasteText] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const autoSubmitted = useRef(false);
 
-  // After the photo is uploaded + OCR'd, submit automatically — no car form.
+  const ocrWeak =
+    !!file &&
+    file.type.startsWith("image/") &&
+    (!file.extractedText || file.extractedText.trim().length < 40);
+
+  const effectiveText = (pasteText.trim().length >= 8 ? pasteText : file?.extractedText) ?? "";
+
+  // Auto-submit only when OCR looks usable (otherwise wait for paste / manual submit).
   useEffect(() => {
     if (!file || pending || autoSubmitted.current || !formRef.current) return;
+    if (ocrWeak && pasteText.trim().length < 20) return;
     autoSubmitted.current = true;
     formRef.current.requestSubmit();
-  }, [file, pending]);
+  }, [file, pending, ocrWeak, pasteText]);
 
   return (
     <form ref={formRef} action={formAction} className="mx-auto max-w-xl space-y-6">
@@ -41,7 +50,9 @@ export function UploadForm() {
                 <p className="text-xs text-muted-foreground">
                   {pending
                     ? "Reading your car + finding cheaper parts…"
-                    : "Ready — analyzing now…"}
+                    : ocrWeak
+                      ? "Photo uploaded — paste the estimate text below"
+                      : "Ready — analyzing now…"}
                 </p>
               </div>
             </div>
@@ -54,6 +65,7 @@ export function UploadForm() {
                 onClick={() => {
                   autoSubmitted.current = false;
                   setFile(null);
+                  setPasteText("");
                 }}
               >
                 <X className="size-4" />
@@ -66,6 +78,7 @@ export function UploadForm() {
               autoSubmitted.current = false;
               setFile(uploaded);
               setUploadError(null);
+              setPasteText("");
             }}
             onError={(msg) => {
               autoSubmitted.current = false;
@@ -78,13 +91,38 @@ export function UploadForm() {
         )}
       </div>
 
-      <input type="hidden" name="fileUrl" value={file?.url ?? ""} />
-      <input type="hidden" name="fileType" value={file?.type ?? ""} />
-      <input type="hidden" name="extractedText" value={file?.extractedText ?? ""} />
+      <div className="space-y-2">
+        <p className="text-sm text-muted-foreground">
+          {ocrWeak
+            ? "We had trouble reading that image clearly. Please copy and paste the text from your estimate directly into this box to instantly find your savings!"
+            : "Or paste estimate text (optional — helps if the photo is blurry):"}
+        </p>
+        <textarea
+          value={pasteText}
+          onChange={(e) => {
+            autoSubmitted.current = false;
+            setPasteText(e.target.value);
+          }}
+          rows={ocrWeak ? 8 : 4}
+          placeholder={`2019 Lexus RX 350\nFront brake pads  $189.00\nBrake rotors  $320.00\nAlternator  $450.00`}
+          className="w-full resize-y rounded-xl border border-input bg-background px-4 py-3 font-mono text-sm leading-relaxed shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          disabled={pending}
+        />
+      </div>
 
-      {file?.extractedText && file.extractedText.trim().length >= 8 && (
-        <KeywordScanTable text={file.extractedText} />
-      )}
+      <input type="hidden" name="fileUrl" value={file?.url ?? (pasteText.trim().length >= 20 ? "paste://estimate" : "")} />
+      <input
+        type="hidden"
+        name="fileType"
+        value={file?.type ?? (pasteText.trim().length >= 20 ? "text/plain" : "")}
+      />
+      <input
+        type="hidden"
+        name="extractedText"
+        value={pasteText.trim().length >= 8 ? pasteText : file?.extractedText ?? ""}
+      />
+
+      {effectiveText.trim().length >= 8 && <KeywordScanTable text={effectiveText} />}
 
       {state?.error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-destructive">
@@ -92,8 +130,7 @@ export function UploadForm() {
         </div>
       )}
 
-      {/* Manual fallback if auto-submit fails */}
-      {file && !pending && (
+      {((file && !pending) || (pasteText.trim().length >= 20 && !pending)) && (
         <Button type="submit" size="lg" className="w-full text-base">
           <Search className="size-5" />
           Find cheaper parts

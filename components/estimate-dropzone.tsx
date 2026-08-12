@@ -109,20 +109,19 @@ export function EstimateDropzone({
       let extractedText: string | undefined;
       if (file.type.startsWith("image/")) {
         setStatus("Reading text from photo…");
-        extractedText = await ocrInBrowser(file);
-        if (!extractedText || extractedText.trim().length < 10) {
-          onError(
-            "Couldn't read text from that photo. Try a clearer image or upload the PDF."
-          );
-          return;
+        try {
+          extractedText = await ocrInBrowser(file);
+        } catch {
+          extractedText = "";
         }
+        // Even if OCR is empty/weak, keep the upload — results page offers paste fallback.
       }
 
       onUploaded({
         url: data.url,
         type: data.type,
         name: file.name,
-        extractedText,
+        extractedText: extractedText ?? "",
       });
     } catch {
       onError("Upload failed — please try again.");

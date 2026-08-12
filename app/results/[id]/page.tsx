@@ -13,6 +13,7 @@ import {
 import { ConfirmVehicleForm } from "@/components/confirm-vehicle-form";
 import { AffiliateBuyButtons } from "@/components/affiliate-links";
 import { CatalogPartImage } from "@/components/catalog-part-image";
+import { PasteEstimateFallback } from "@/components/paste-estimate-fallback";
 import { bestBuyForPart, buildAffiliateLinks } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
@@ -77,18 +78,15 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
     }
 
     return (
-      <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-28 text-center">
-        <AlertTriangle className="size-12 text-destructive" />
-        <h1 className="mt-6 text-2xl font-bold">Couldn&apos;t read that estimate</h1>
-        <p className="mt-3 text-muted-foreground">
-          {estimate.errorMessage ?? "Try a clearer photo or the PDF from the shop."}
-        </p>
-        <div className="mt-8 flex gap-3">
-          <RetryParseButton estimateId={estimate.id} />
-          <Link href="/upload">
-            <Button>Upload again</Button>
-          </Link>
-        </div>
+      <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-16 text-center sm:px-6">
+        <PasteEstimateFallback
+          estimateId={estimate.id}
+          initialText={estimate.extractedText ?? ""}
+          heading="Couldn't read that estimate"
+        />
+        <Link href="/upload" className="mt-2">
+          <Button variant="outline">Upload again</Button>
+        </Link>
       </div>
     );
   }
@@ -232,25 +230,23 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
     }
 
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
+      <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
         <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
           <Car className="size-3.5" />
           {carLabel}
           {vinHint}
         </p>
-        <h1 className="mt-4 text-2xl font-extrabold tracking-tight">
-          {laborOnly ? "No parts on this estimate" : "We couldn't match those parts yet"}
-        </h1>
-        <p className="mt-3 text-muted-foreground">
-          {laborOnly
-            ? "This looks like labor or service only (no replacement parts listed). Browse the catalog for your car, or upload an estimate that lists parts."
-            : "Upload a clearer photo or the shop PDF so we can show your savings."}
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <PasteEstimateFallback
+          estimateId={estimate.id}
+          initialText={estimate.extractedText ?? ""}
+          heading={
+            laborOnly ? "We couldn't pull parts from that image" : "We couldn't match those parts yet"
+          }
+        />
+        <div className="mt-4 flex flex-wrap justify-center gap-3">
           <Link href={catalogHref}>
-            <Button>Browse {estimate.vehicle.model} parts</Button>
+            <Button variant="outline">Browse {estimate.vehicle.model} parts</Button>
           </Link>
-          <RetryParseButton estimateId={estimate.id} />
           <Link href="/upload">
             <Button variant="outline">Upload again</Button>
           </Link>
