@@ -12,6 +12,8 @@ import { parseEstimateHeuristically, extractVehicleFromText } from "@/lib/ai/heu
 import type { ParsedEstimate } from "@/lib/ai/schema";
 import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
+import { decodeVin, extractAndDecodeVin, extractVinFromText } from "@/lib/vin";
+import { normalizeMake } from "@/lib/vehicles";
 
 function isLaborJunkLine(description: string): boolean {
   return /job\s*t[ui]me|without\s+allowance|fuel\s+conditioning|fuel\s+tank|fuel\s+delivery|fr[uil]\b|998729|monsoon|wrong\s+fuel|electrical\s+system|quick-?inspection|sum\s+labor/i.test(
@@ -197,11 +199,31 @@ export async function processEstimate(estimateId: string): Promise<void> {
 
     result = mergeVehicleFromText(result, text);
 
-    // Prefer vehicle printed on the estimate; if missing, keep Pending and ask the user.
+    // VIN on the estimate → NHTSA decode (exact year/make/model/engine/trim)
+    if (text) {
+      const decoded = await extractAndDecodeVin(text);
+      if (decoded?.vin && (decoded.year || decoded.make || decoded.model)) {
+        result = {
+          ...result,
+          vehicle: {
+            year: decoded.year ?? result.vehicle.year,
+            make: normalizeMake(decoded.make) ?? result.vehicle.make,
+            model: decoded.model ?? result.vehicle.model,
+            engine: decoded.engine ?? result.vehicle.engine,
+          },
+        };
+        // Store VIN on the vehicle record below
+        (result as ParsedEstimate & { _vin?: string })._vin = decoded.vin;
+      }
+    }
+
     const detectedYear = result.vehicle.year;
     const detectedMake = result.vehicle.make;
     const detectedModel = result.vehicle.model;
     const detectedEngine = result.vehicle.engine;
+    const detectedVin =
+      (result as ParsedEstimate & { _vin?: string })._vin ??
+      (text ? extractVinFromText(text) : null);
     const needsVehicle =
       !detectedYear ||
       !detectedModel ||
@@ -244,12 +266,14 @@ export async function processEstimate(estimateId: string): Promise<void> {
             make: detectedMake ?? "Unknown",
             model: "Pending",
             engine: null,
+            ...(detectedVin ? { vin: detectedVin } : {}),
           }
         : {
             year: detectedYear!,
             make: detectedMake ?? "Unknown",
             model: detectedModel!,
             ...(detectedEngine ? { engine: detectedEngine } : { engine: null }),
+            ...(detectedVin ? { vin: detectedVin } : {}),
           },
     });
 
@@ -280,7 +304,7 @@ export async function retryEstimate(estimateId: string): Promise<void> {
 /** Customer fills year/make/model when the estimate didn't print them clearly. */
 export async function confirmEstimateVehicle(
   estimateId: string,
-  input: { year: number; make: string; model: string; engine?: string }
+  input: { year: number; make: string; model: string; engine?: string; vin?: string }
 ): Promise<{ error?: string }> {
   const user = await ensureUser();
   const estimate = await db.estimate.findUniqueOrThrow({
@@ -302,11 +326,38 @@ export async function confirmEstimateVehicle(
     return { error: "Enter your model (e.g. Camry, Civic, 330i, F-150)." };
   }
 
-  const engine = input.engine?.trim() ? input.engine.trim().toUpperCase() : null;
+  let vin = input.vin?.replace(/[^A-HJ-NPR-Z0-9]/gi, "").toUpperCase() || null;
+  if (vin && vin.length !== 17) {
+    return { error: "VIN must be exactly 17 characters (no I, O, or Q)." };
+  }
+
+  let engine = input.engine?.trim() ? input.engine.trim().toUpperCase() : null;
+  let trim: string | null = null;
+  let finalYear = year;
+  let finalMake = make;
+  let finalModel = model;
+
+  if (vin) {
+    const decoded = await decodeVin(vin);
+    if (decoded) {
+      if (decoded.year) finalYear = decoded.year;
+      if (decoded.make) finalMake = normalizeMake(decoded.make) ?? finalMake;
+      if (decoded.model) finalModel = decoded.model;
+      if (decoded.engine) engine = decoded.engine;
+      if (decoded.trim) trim = decoded.trim;
+    }
+  }
 
   await db.vehicle.update({
     where: { id: estimate.vehicleId },
-    data: { year, make, model, engine },
+    data: {
+      year: finalYear,
+      make: finalMake,
+      model: finalModel,
+      engine,
+      trim,
+      vin,
+    },
   });
   await db.estimate.update({
     where: { id: estimateId },

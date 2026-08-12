@@ -108,18 +108,37 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
   }
 
   const comparisons = estimate.comparisons.filter((c) => c.savings >= 0 || c.ourPrice > 0);
-  const totalSavings = round2(comparisons.reduce((s, c) => s + Math.max(0, c.savings), 0));
+  // Group premium + budget tiers per estimate line
+  const byItem = new Map<
+    string,
+    { premium?: (typeof comparisons)[0]; budget?: (typeof comparisons)[0] }
+  >();
+  for (const c of comparisons) {
+    const key = c.estimateItemId ?? c.id;
+    const row = byItem.get(key) ?? {};
+    if (c.matchMethod === "BUDGET") row.budget = c;
+    else row.premium = c;
+    byItem.set(key, row);
+  }
+  const lines = [...byItem.values()];
+  const primaryLines = lines.map((l) => l.premium ?? l.budget!).filter(Boolean);
+  const totalSavings = round2(
+    primaryLines.reduce((s, c) => s + Math.max(0, c.savings), 0)
+  );
   const shopParts = round2(
-    comparisons.length > 0
-      ? comparisons.reduce((s, c) => s + c.mechanicPrice, 0)
+    primaryLines.length > 0
+      ? primaryLines.reduce((s, c) => s + c.mechanicPrice, 0)
       : estimate.items.reduce((s, i) => s + i.mechanicPrice, 0)
   );
-  const onlineParts = round2(comparisons.reduce((s, c) => s + c.ourPrice, 0));
+  const onlineParts = round2(primaryLines.reduce((s, c) => s + c.ourPrice, 0));
   const carLabel = `${estimate.vehicle.year} ${estimate.vehicle.make !== "Unknown" ? estimate.vehicle.make + " " : ""}${estimate.vehicle.model}${
     estimate.vehicle.engine ? ` · ${estimate.vehicle.engine}` : ""
   }`;
+  const vinHint = estimate.vehicle.vin
+    ? ` · VIN …${estimate.vehicle.vin.slice(-6)}`
+    : "";
 
-  if (comparisons.length === 0) {
+  if (primaryLines.length === 0) {
     const laborOnly =
       estimate.errorMessage === "NO_PARTS" ||
       estimate.items.length === 0 ||
@@ -134,13 +153,14 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
           <Car className="size-3.5" />
           {carLabel}
+          {vinHint}
         </p>
         <h1 className="mt-4 text-2xl font-extrabold tracking-tight">
           {laborOnly ? "No parts on this estimate" : "We couldn't match those parts yet"}
         </h1>
         <p className="mt-3 text-muted-foreground">
           {laborOnly
-            ? "This looks like labor or service only (no replacement parts listed). Browse the catalog for your BMW, or upload an estimate that lists parts."
+            ? "This looks like labor or service only (no replacement parts listed). Browse the catalog for your car, or upload an estimate that lists parts."
             : "Upload a clearer photo or the shop PDF so we can show your savings."}
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -158,9 +178,10 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="mx-auto max-w-xl px-4 py-10 sm:px-6 sm:py-14">
-      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
         <Car className="size-3.5" />
         {carLabel}
+        {vinHint}
       </p>
 
       <div className="mt-6 rounded-3xl bg-primary px-6 py-8 text-center text-primary-foreground">
@@ -169,69 +190,122 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           {formatCurrency(Math.max(0, totalSavings))}
         </p>
         <p className="mt-3 text-sm opacity-90">
-          Shop wants {formatCurrency(shopParts)} for these parts → online about{" "}
+          Shop wants {formatCurrency(shopParts)} for these parts → OEM/premium online about{" "}
           {formatCurrency(onlineParts)}
         </p>
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Buy each part from the best store below. Retailers ship to you — this site is free.
+        OEM/premium matches quality; budget is cheaper aftermarket when available. Always
+        verify fitment on the retailer before buying.
       </p>
 
-      <ul className="mt-8 space-y-3">
-        {comparisons.map((c) => {
-          const query = {
-            brand: c.catalogPart.brand,
-            name: c.catalogPart.name,
-            oemNumbers: c.catalogPart.oemNumbers,
-            oemPartNumber: c.estimateItem?.oemPartNumber,
-            year: estimate.vehicle.year,
-            make: estimate.vehicle.make,
-            model: estimate.vehicle.model,
-            engine: estimate.vehicle.engine,
-          };
-          const links = buildAffiliateLinks(query);
-          const best = bestBuyForPart(query);
-          const qty = c.estimateItem?.quantity ?? 1;
+      <ul className="mt-8 space-y-4">
+        {lines.map((line) => {
+          const primary = line.premium ?? line.budget!;
+          const tiers = [
+            line.premium
+              ? { label: "OEM / Premium", c: line.premium, badge: "quality" as const }
+              : null,
+            line.budget
+              ? { label: "Budget choice", c: line.budget, badge: "budget" as const }
+              : null,
+          ].filter(Boolean) as {
+            label: string;
+            c: (typeof comparisons)[0];
+            badge: "quality" | "budget";
+          }[];
+
+          const shopName =
+            primary.estimateItem?.description ?? primary.catalogPart.name;
+          const qty = primary.estimateItem?.quantity ?? 1;
+
           return (
-            <li key={c.id} className="rounded-2xl border bg-card px-4 py-4">
-              <div className="flex items-start gap-3">
-                <CatalogPartImage
-                  name={c.catalogPart.name}
-                  category={c.catalogPart.category}
-                  imageUrl={c.catalogPart.imageUrl}
-                  className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-secondary"
-                  sizes="56px"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-bold leading-snug">
-                        {c.catalogPart.name}
-                        {qty > 1 ? ` ×${qty}` : ""}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {c.catalogPart.brand} · best via {best.label}
-                      </p>
+            <li key={primary.id} className="rounded-2xl border bg-card px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Shop line: {shopName}
+                {qty > 1 ? ` ×${qty}` : ""}
+              </p>
+              <div className="mt-3 space-y-4">
+                {tiers.map(({ label, c, badge }) => {
+                  const query = {
+                    brand: c.catalogPart.brand,
+                    name: c.catalogPart.name,
+                    oemNumbers: c.catalogPart.oemNumbers,
+                    oemPartNumber: c.estimateItem?.oemPartNumber,
+                    year: estimate.vehicle.year,
+                    make: estimate.vehicle.make,
+                    model: estimate.vehicle.model,
+                    engine: estimate.vehicle.engine,
+                  };
+                  const links = buildAffiliateLinks(query);
+                  const best = bestBuyForPart(query);
+                  const savingsPct =
+                    c.mechanicPrice > 0
+                      ? (Math.max(0, c.savings) / c.mechanicPrice) * 100
+                      : null;
+                  return (
+                    <div
+                      key={c.id}
+                      className="rounded-xl border border-dashed border-border/80 bg-secondary/30 p-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <CatalogPartImage
+                          name={c.catalogPart.name}
+                          category={c.catalogPart.category}
+                          imageUrl={c.catalogPart.imageUrl}
+                          className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-secondary"
+                          sizes="48px"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-primary">
+                                {label}
+                              </p>
+                              <p className="font-bold leading-snug">{c.catalogPart.name}</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {c.catalogPart.brand}
+                                {badge === "quality" && c.matchMethod === "OEM_NUMBER"
+                                  ? " · OEM #"
+                                  : ""}{" "}
+                                · via {best.label}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-sm tabular-nums text-muted-foreground line-through">
+                                {formatCurrency(c.mechanicPrice)}
+                              </p>
+                              <p className="text-lg font-extrabold tabular-nums text-primary">
+                                {formatCurrency(c.ourPrice)}
+                              </p>
+                              {c.savings > 0 && (
+                                <p className="text-xs font-semibold text-success">
+                                  Save {formatCurrency(c.savings)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mt-2.5">
+                            <AffiliateBuyButtons
+                              links={links}
+                              compact
+                              primaryId={best.id}
+                              fitment={{
+                                year: estimate.vehicle.year,
+                                make: estimate.vehicle.make,
+                                model: estimate.vehicle.model,
+                                vin: estimate.vehicle.vin,
+                                savingsPercent: savingsPct,
+                                partName: c.catalogPart.name,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm tabular-nums text-muted-foreground line-through">
-                        {formatCurrency(c.mechanicPrice)}
-                      </p>
-                      <p className="text-lg font-extrabold tabular-nums text-primary">
-                        {formatCurrency(c.ourPrice)}
-                      </p>
-                      {c.savings > 0 && (
-                        <p className="text-xs font-semibold text-success">
-                          Save {formatCurrency(c.savings)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <AffiliateBuyButtons links={links} compact primaryId={best.id} />
-                  </div>
-                </div>
+                  );
+                })}
               </div>
             </li>
           );

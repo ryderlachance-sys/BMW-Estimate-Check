@@ -32,6 +32,7 @@ export function ConfirmVehicleForm({ estimateId }: { estimateId: string }) {
         const modelOther = String(fd.get("modelOther") ?? "");
         const model = makeVal === "Other" || models.length === 0 ? modelOther : modelRaw;
         const engine = String(fd.get("engine") ?? "") || undefined;
+        const vin = String(fd.get("vin") ?? "") || undefined;
         setError(null);
         startTransition(async () => {
           const res = await confirmEstimateVehicle(estimateId, {
@@ -39,6 +40,7 @@ export function ConfirmVehicleForm({ estimateId }: { estimateId: string }) {
             make: makeVal,
             model,
             engine,
+            vin,
           });
           if (res.error) {
             setError(res.error);
@@ -49,9 +51,23 @@ export function ConfirmVehicleForm({ estimateId }: { estimateId: string }) {
       }}
     >
       <p className="text-sm text-muted-foreground">
-        We couldn&apos;t read the year/make/model from that estimate. Enter your car so we can
-        match parts.
+        We couldn&apos;t read the year/make/model from that estimate. Enter your car — a VIN
+        is best for exact fitment.
       </p>
+      <div>
+        <Label htmlFor="vin">VIN (recommended)</Label>
+        <Input
+          id="vin"
+          name="vin"
+          placeholder="17-character VIN from the estimate"
+          className="mt-1.5 font-mono uppercase"
+          autoComplete="off"
+          maxLength={17}
+        />
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          We decode it with NHTSA (free) for exact year, make, model, and engine.
+        </p>
+      </div>
       <div>
         <Label htmlFor="year">Year</Label>
         <Select id="year" name="year" required defaultValue="" className="mt-1.5">

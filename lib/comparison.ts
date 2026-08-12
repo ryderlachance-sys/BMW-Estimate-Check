@@ -33,6 +33,13 @@ const BRAND_RANK: Record<string, number> = {
   akebono: 2,
   rein: 1,
   meyle: 1,
+  // Budget / economy aftermarket
+  "detroit axle": 0,
+  durago: 0,
+  "centric": 0,
+  "power stop": 1,
+  wagner: 1,
+  raybestos: 1,
 };
 
 function brandRank(brand: string): number {
@@ -207,15 +214,33 @@ export function isLaborLikeEstimateLine(
 export interface MatchResult {
   item: EstimateItem;
   part: CatalogPart;
-  method: "OEM_NUMBER" | "SEMANTIC";
+  method: "OEM_NUMBER" | "SEMANTIC" | "PREMIUM" | "BUDGET";
   score: number;
+  tier: "premium" | "budget";
+}
+
+function pickBestAmong(
+  candidates: { part: CatalogPart; score: number; method: MatchResult["method"] }[],
+  prefer: "quality" | "price"
+): { part: CatalogPart; score: number; method: MatchResult["method"] } | null {
+  if (candidates.length === 0) return null;
+  return [...candidates].sort((a, b) => {
+    if (prefer === "quality") {
+      return (
+        brandRank(b.part.brand) - brandRank(a.part.brand) ||
+        b.score - a.score ||
+        a.part.price - b.part.price
+      );
+    }
+    return a.part.price - b.part.price || b.score - a.score;
+  })[0];
 }
 
 /**
  * Matching algorithm:
  * 1. Exact OEM part-number match — only if that part fits this vehicle.
  * 2. Otherwise, semantic similarity within compatible parts.
- * 3. Wrong-car OEM hits are ignored (search retailers instead of a bad match).
+ * 3. Returns up to two tiers per line: OEM/Premium and Budget (when different).
  */
 export async function matchEstimateItems(
   items: EstimateItem[],
@@ -229,47 +254,69 @@ export async function matchEstimateItems(
   const results: MatchResult[] = [];
 
   for (const item of items) {
-    // Skip labor / R&R lines that slipped past the parser (no OEM on the line)
     if (isLaborLikeEstimateLine(item.description, item.oemPartNumber)) {
       continue;
     }
 
     const oem = normalizeOemNumber(item.oemPartNumber);
+    const scored: { part: CatalogPart; score: number; method: MatchResult["method"] }[] = [];
 
-    // 1) OEM number match — must fit this car (never N54 plugs on an M5).
     if (oem) {
-      const oemMatches = catalog.filter(
-        (p) =>
+      for (const p of catalog) {
+        if (
           p.oemNumbers.some((n) => normalizeOemNumber(n) === oem) &&
           isCompatible(p, vehicle)
-      );
-      if (oemMatches.length > 0) {
-        const best = oemMatches.sort(
-          (a, b) => brandRank(b.brand) - brandRank(a.brand) || a.price - b.price
-        )[0];
-        results.push({ item, part: best, method: "OEM_NUMBER", score: 1 });
-        continue;
+        ) {
+          scored.push({ part: p, score: 1, method: "OEM_NUMBER" });
+        }
       }
     }
 
-    // 2) Semantic match within compatible parts.
-    let best: { part: CatalogPart; score: number } | null = null;
-    for (const part of compatible) {
-      const score = similarityScore(item.description, part);
-      if (score < MIN_SEMANTIC_SCORE) continue;
-      if (
-        !best ||
-        score > best.score + 0.001 ||
-        (Math.abs(score - best.score) <= 0.001 &&
-          (brandRank(part.brand) > brandRank(best.part.brand) ||
-            (brandRank(part.brand) === brandRank(best.part.brand) &&
-              part.price < best.part.price)))
-      ) {
-        best = { part, score };
+    if (scored.length === 0) {
+      for (const part of compatible) {
+        const score = similarityScore(item.description, part);
+        if (score < MIN_SEMANTIC_SCORE) continue;
+        scored.push({ part, score, method: "SEMANTIC" });
       }
     }
-    if (best) {
-      results.push({ item, part: best.part, method: "SEMANTIC", score: round2(best.score) });
+
+    if (scored.length === 0) continue;
+
+    const premiumPool = scored.filter(
+      (s) => s.method === "OEM_NUMBER" || brandRank(s.part.brand) >= 2
+    );
+    const budgetPool = scored.filter((s) => brandRank(s.part.brand) <= 1);
+
+    const premium =
+      pickBestAmong(premiumPool.length ? premiumPool : scored, "quality") ??
+      pickBestAmong(scored, "quality");
+    const budget = pickBestAmong(
+      budgetPool.length ? budgetPool : scored,
+      "price"
+    );
+
+    if (premium) {
+      results.push({
+        item,
+        part: premium.part,
+        method: premium.method === "OEM_NUMBER" ? "OEM_NUMBER" : "PREMIUM",
+        score: round2(premium.score),
+        tier: "premium",
+      });
+    }
+
+    if (
+      budget &&
+      (!premium || budget.part.id !== premium.part.id) &&
+      budget.part.price < (premium?.part.price ?? Infinity)
+    ) {
+      results.push({
+        item,
+        part: budget.part,
+        method: "BUDGET",
+        score: round2(budget.score),
+        tier: "budget",
+      });
     }
   }
 
