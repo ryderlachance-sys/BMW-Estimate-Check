@@ -208,7 +208,10 @@ export async function processEstimate(estimateId: string): Promise<void> {
 
     if (text) text = repairOcrText(text);
 
-    if (!text || text.trim().length < 12) {
+    const canUseVision =
+      hasAiConfigured() && isImage && !isPasteOnly && estimate.originalFileUrl !== "paste://estimate";
+
+    if ((!text || text.trim().length < 12) && !canUseVision) {
       await db.estimate.update({
         where: { id: estimateId },
         data: {
@@ -220,28 +223,35 @@ export async function processEstimate(estimateId: string): Promise<void> {
       return;
     }
 
-    let result: ParsedEstimate;
+    let result: ParsedEstimate & { _vin?: string | null };
     if (hasAiConfigured()) {
       try {
-        result = await parseEstimate(
-          isImage && !text
-            ? { imageUrl: await getImageForAi(estimate.originalFileUrl, estimate.originalFileType) }
-            : { text: text ?? "" }
-        );
-      } catch {
-        if (!text) throw new Error("Could not read any text from this file.");
+        const imageUrl = canUseVision
+          ? await getImageForAi(estimate.originalFileUrl, estimate.originalFileType)
+          : undefined;
+        result = await parseEstimate({
+          text: text && text.trim().length >= 12 ? text : undefined,
+          imageUrl,
+        });
+      } catch (err) {
+        console.error("gpt parseEstimate failed, falling back", err);
+        if (!text || text.trim().length < 12) {
+          throw new Error("Could not read any text from this file.");
+        }
         result = parseEstimateHeuristically(text);
       }
-    } else if (text) {
+    } else if (text && text.trim().length >= 12) {
       result = parseEstimateHeuristically(text);
     } else {
       throw new Error("Could not read any text from this file.");
     }
 
-    result = mergeVehicleFromText(result, text);
+    result = mergeVehicleFromText(result, text ?? "");
 
-    // VIN on the estimate → NHTSA decode (exact year/make/model/engine/trim)
-    if (text) {
+    // Prefer VIN from GPT extract, then NHTSA decode from text
+    if (result._vin) {
+      // keep AI VIN
+    } else if (text) {
       const decoded = await extractAndDecodeVin(text);
       if (decoded?.vin && (decoded.year || decoded.make || decoded.model)) {
         result = {
@@ -252,9 +262,24 @@ export async function processEstimate(estimateId: string): Promise<void> {
             model: decoded.model ?? result.vehicle.model,
             engine: decoded.engine ?? result.vehicle.engine,
           },
+          _vin: decoded.vin,
         };
-        // Store VIN on the vehicle record below
-        (result as ParsedEstimate & { _vin?: string })._vin = decoded.vin;
+      }
+    }
+
+    // If GPT returned a VIN, optionally enrich year/make/model via NHTSA
+    if (result._vin && (!result.vehicle.year || !result.vehicle.make || !result.vehicle.model)) {
+      const decoded = await decodeVin(result._vin);
+      if (decoded) {
+        result = {
+          ...result,
+          vehicle: {
+            year: decoded.year ?? result.vehicle.year,
+            make: normalizeMake(decoded.make) ?? result.vehicle.make,
+            model: decoded.model ?? result.vehicle.model,
+            engine: decoded.engine ?? result.vehicle.engine,
+          },
+        };
       }
     }
 
@@ -263,12 +288,23 @@ export async function processEstimate(estimateId: string): Promise<void> {
     const detectedModel = result.vehicle.model;
     const detectedEngine = result.vehicle.engine;
     const detectedVin =
-      (result as ParsedEstimate & { _vin?: string })._vin ??
-      (text ? extractVinFromText(text) : null);
+      result._vin ?? (text ? extractVinFromText(text) : null);
     const needsVehicle =
       !detectedYear ||
       !detectedModel ||
       detectedModel.toLowerCase() === "pending";
+
+    // Vision-only parses leave OCR empty — store a readable summary for retries / admin
+    if ((!text || text.trim().length < 12) && result.parts.length > 0) {
+      const header = [detectedYear, detectedMake, detectedModel].filter(Boolean).join(" ");
+      text = [
+        header,
+        detectedVin ? `VIN: ${detectedVin}` : null,
+        ...result.parts.map((p) => `${p.description} $${p.mechanicPrice.toFixed(2)}`),
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
 
     await db.estimateItem.deleteMany({ where: { estimateId } });
     if (result.parts.length > 0) {
