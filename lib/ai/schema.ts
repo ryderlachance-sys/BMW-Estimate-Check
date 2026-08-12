@@ -31,6 +31,16 @@ export const ParsedEstimateSchema = z.object({
           .describe(
             "OEM / manufacturer part number if printed (BMW 11-digit, Toyota 5-5, Honda 5-3-3, etc.), digits/letters only"
           ),
+        amazonAsin: z
+          .string()
+          .nullable()
+          .optional()
+          .describe("Amazon ASIN for a matching product listing when known"),
+        ebayItemId: z
+          .string()
+          .nullable()
+          .optional()
+          .describe("eBay item ID for a matching listing when known"),
       })
     )
     .describe("Every part line item on the estimate. Exclude labor, shop fees and taxes."),

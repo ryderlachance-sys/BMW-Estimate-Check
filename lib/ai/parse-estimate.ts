@@ -37,6 +37,8 @@ export const GptMechanicExtractSchema = z.object({
     z.object({
       part_name: z.string(),
       mechanic_price: z.number(),
+      amazon_asin: z.string().nullable().optional(),
+      ebay_item_id: z.union([z.string(), z.number()]).nullable().optional(),
     })
   ),
 });
@@ -46,7 +48,9 @@ export type GptMechanicExtract = z.infer<typeof GptMechanicExtractSchema>;
 const SYSTEM_PROMPT = `You are an expert automotive mechanic estimator.
 You read shop repair estimates (photos, screenshots, or pasted text) for ANY car make.
 
-Your ONLY job is to extract vehicle details and replacement PARTS with the shop's quoted prices.
+Your job is to extract vehicle details, replacement PARTS with shop prices, and — when you
+know a real retail listing — the Amazon ASIN and/or eBay Item ID so the shopper can open a
+single product page (Buy Now), not a search results grid.
 
 Rules:
 - Act like a seasoned estimator: read blurry OCR, abbreviations, and messy invoices carefully.
@@ -55,6 +59,10 @@ Rules:
 - mechanic_price is the shop's parts price for that line in USD (include quantity in the total).
 - year is the vehicle model year (e.g. "2019"). make/model as printed (e.g. Jeep / Grand Cherokee).
 - vin is the 17-character VIN if present, otherwise null.
+- amazon_asin: ONLY a real 10-character Amazon ASIN for a matching automotive part if you are
+  highly confident it exists. Otherwise null. NEVER invent or guess ASINs.
+- ebay_item_id: ONLY a real eBay item ID (numeric) for a matching listing if highly confident.
+  Otherwise null. NEVER invent IDs.
 - If a field is missing, use null (or [] for parts).
 
 Return ONLY a single JSON object with this exact structure (no markdown, no commentary):
@@ -64,8 +72,18 @@ Return ONLY a single JSON object with this exact structure (no markdown, no comm
   "model": "Grand Cherokee",
   "vin": "17-digit-VIN-or-null",
   "parts": [
-    {"part_name": "Front Brake Pads", "mechanic_price": 150.00},
-    {"part_name": "Brake Rotors", "mechanic_price": 200.00}
+    {
+      "part_name": "Front Brake Pads",
+      "mechanic_price": 150.00,
+      "amazon_asin": "B00EXAMPLE1",
+      "ebay_item_id": "123456789012"
+    },
+    {
+      "part_name": "Brake Rotors",
+      "mechanic_price": 200.00,
+      "amazon_asin": null,
+      "ebay_item_id": null
+    }
   ]
 }`;
 
@@ -85,6 +103,24 @@ function normalizeVin(vin: string | null): string | null {
   return cleaned.length === 17 ? cleaned : null;
 }
 
+/** Amazon ASIN: 10 alphanumeric chars (not starting with empty). */
+export function normalizeAsin(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const cleaned = value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (!/^[A-Z0-9]{10}$/.test(cleaned)) return null;
+  return cleaned;
+}
+
+/** eBay item IDs are typically 9–15 digits. */
+export function normalizeEbayItemId(
+  value: string | number | null | undefined
+): string | null {
+  if (value == null) return null;
+  const cleaned = String(value).replace(/\D/g, "");
+  if (cleaned.length < 9 || cleaned.length > 15) return null;
+  return cleaned;
+}
+
 /** Map GPT JSON → internal ParsedEstimate (+ optional _vin). */
 export function mapGptExtractToParsed(
   raw: GptMechanicExtract
@@ -96,6 +132,8 @@ export function mapGptExtractToParsed(
       quantity: 1,
       mechanicPrice: Math.round(p.mechanic_price * 100) / 100,
       oemPartNumber: null as string | null,
+      amazonAsin: normalizeAsin(p.amazon_asin ?? null),
+      ebayItemId: normalizeEbayItemId(p.ebay_item_id ?? null),
     }));
 
   const partsSum = parts.reduce((s, p) => s + p.mechanicPrice, 0);

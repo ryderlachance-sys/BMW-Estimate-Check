@@ -1,8 +1,8 @@
 /**
  * Affiliate / referral links for real retailers.
  *
- * Money path: shoppers buy on Amazon/eBay/FCP via your tagged links.
- * We auto-pick one best store per part so the UI stays one-button simple.
+ * Prefer single-product Amazon (ASIN) and eBay (item ID) pages so shoppers
+ * land on a Buy Now listing — not a search results grid.
  */
 
 export type AffiliateLink = {
@@ -10,6 +10,8 @@ export type AffiliateLink = {
   label: string;
   hint: string;
   url: string;
+  /** True when URL is a direct product page (ASIN / item ID). */
+  isProductPage?: boolean;
 };
 
 export type PartAffiliateQuery = {
@@ -21,6 +23,8 @@ export type PartAffiliateQuery = {
   make?: string | null;
   model?: string | null;
   engine?: string | null;
+  amazonAsin?: string | null;
+  ebayItemId?: string | null;
 };
 
 function firstOem(q: PartAffiliateQuery): string | null {
@@ -51,6 +55,8 @@ function vehiclePhrase(q: PartAffiliateQuery): string {
 function amazonSearchQuery(q: PartAffiliateQuery): string {
   const name = cleanName(q.name);
   const vehicle = vehiclePhrase(q);
+  const oem = firstOem(q);
+  if (oem && name) return `${oem} ${name}`;
   if (vehicle && name) return `${vehicle} ${name}`;
   if (name && q.make && q.make !== "Unknown") return `${q.make} ${name}`;
   if (name) return name;
@@ -80,62 +86,124 @@ function withEbayCampid(url: string): string {
   return `${url}${sep}mkcid=1&mkrid=711-53200-19255-0&siteid=0&campid=${encodeURIComponent(campid)}&toolid=10001&mkevt=1`;
 }
 
-/** Build buy links for all retailers. */
-export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
-  const oem = firstOem(q);
+function normalizeAsin(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const cleaned = value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  return /^[A-Z0-9]{10}$/.test(cleaned) ? cleaned : null;
+}
+
+function normalizeEbayItemId(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const cleaned = value.replace(/\D/g, "");
+  return cleaned.length >= 9 && cleaned.length <= 15 ? cleaned : null;
+}
+
+/** Amazon product page when ASIN known; otherwise a tight automotive search. */
+export function buildAmazonLink(q: PartAffiliateQuery): AffiliateLink {
+  const asin = normalizeAsin(q.amazonAsin);
+  if (asin) {
+    return {
+      id: "amazon",
+      label: "Amazon",
+      hint: "Buy Now",
+      isProductPage: true,
+      url: withAmazonTag(`https://www.amazon.com/dp/${asin}`),
+    };
+  }
   const amazonQ = encodeURIComponent(amazonSearchQuery(q));
-  const partsQ = encodeURIComponent(partsSearchQuery(q));
-  const ebayText = encodeURIComponent(
-    oem ? `${vehiclePhrase(q)} ${oem}`.trim() || oem : amazonSearchQuery(q)
-  );
-
-  const links: AffiliateLink[] = [];
-
-  links.push({
+  return {
     id: "amazon",
     label: "Amazon",
     hint: "Fast shipping",
-    url: withAmazonTag(`https://www.amazon.com/s?k=${amazonQ}`),
-  });
+    isProductPage: false,
+    // Automotive department bias keeps results closer to a single-product feel
+    url: withAmazonTag(
+      `https://www.amazon.com/s?k=${amazonQ}&i=automotive-intl-ship&rh=n%3A15684181`
+    ),
+  };
+}
 
-  const rockQuery = oem ?? partsSearchQuery(q);
-  links.push({
-    id: "rockauto",
-    label: "RockAuto",
-    hint: "Usually cheapest",
-    url: `https://www.rockauto.com/en/partsearch/?partnum=${encodeURIComponent(rockQuery)}`,
-  });
-
-  const fcpBase = `https://www.fcpeuro.com/search?q=${partsQ}`;
-  const fcpClick = process.env.NEXT_PUBLIC_FCP_EURO_CLICK_ID?.trim();
-  links.push({
-    id: "fcpeuro",
-    label: "FCP Euro",
-    hint: "Lifetime warranty",
-    url: fcpClick
-      ? `https://fcpeuro.sjv.io/${fcpClick}?u=${encodeURIComponent(fcpBase)}`
-      : fcpBase,
-  });
-
-  links.push({
+/** eBay Motors item page when item ID known; otherwise Motors search. */
+export function buildEbayLink(q: PartAffiliateQuery): AffiliateLink {
+  const itemId = normalizeEbayItemId(q.ebayItemId);
+  if (itemId) {
+    return {
+      id: "ebay",
+      label: "eBay",
+      hint: "Buy It Now",
+      isProductPage: true,
+      url: withEbayCampid(`https://www.ebay.com/itm/${itemId}`),
+    };
+  }
+  const oem = firstOem(q);
+  const ebayText = encodeURIComponent(
+    oem ? `${vehiclePhrase(q)} ${oem}`.trim() || oem : amazonSearchQuery(q)
+  );
+  return {
     id: "ebay",
     label: "eBay",
-    hint: "Used & new",
-    url: withEbayCampid(`https://www.ebay.com/sch/i.html?_nkw=${ebayText}`),
-  });
+    hint: "Motors",
+    isProductPage: false,
+    url: withEbayCampid(
+      `https://www.ebay.com/sch/i.html?_nkw=${ebayText}&_sacat=6000`
+    ),
+  };
+}
 
-  return links;
+export function buildRockAutoLink(q: PartAffiliateQuery): AffiliateLink {
+  const rockQuery = firstOem(q) ?? partsSearchQuery(q);
+  return {
+    id: "rockauto",
+    label: "RockAuto",
+    hint: "Wholesaler",
+    isProductPage: false,
+    url: `https://www.rockauto.com/en/partsearch/?partnum=${encodeURIComponent(rockQuery)}`,
+  };
+}
+
+/** Build buy links for all retailers (legacy helpers + cart flows). */
+export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
+  const partsQ = encodeURIComponent(partsSearchQuery(q));
+  const fcpBase = `https://www.fcpeuro.com/search?q=${partsQ}`;
+  const fcpClick = process.env.NEXT_PUBLIC_FCP_EURO_CLICK_ID?.trim();
+
+  return [
+    buildAmazonLink(q),
+    buildRockAutoLink(q),
+    {
+      id: "fcpeuro",
+      label: "FCP Euro",
+      hint: "Lifetime warranty",
+      isProductPage: false,
+      url: fcpClick
+        ? `https://fcpeuro.sjv.io/${fcpClick}?u=${encodeURIComponent(fcpBase)}`
+        : fcpBase,
+    },
+    buildEbayLink(q),
+  ];
 }
 
 /**
  * Pick one store per part for the cart "Buy all" flow.
- * Prioritize price + reliability for the customer's situation — commission is a
- * small tie-breaker only (never force everything to Amazon).
+ * Prefer Amazon/eBay product pages when we have ASIN / item ID.
  */
 export function pickBestAffiliateLink(
   links: AffiliateLink[],
-  opts?: { brand?: string; partName?: string; hasOem?: boolean; make?: string }
+  opts?: {
+    brand?: string;
+    partName?: string;
+    hasOem?: boolean;
+    make?: string;
+    preferProductPages?: boolean;
+  }
 ): AffiliateLink {
+  if (opts?.preferProductPages !== false) {
+    const product = links.find((l) => l.isProductPage && (l.id === "amazon" || l.id === "ebay"));
+    if (product) return product;
+    const amazon = links.find((l) => l.id === "amazon");
+    if (amazon) return amazon;
+  }
+
   const brand = (opts?.brand ?? "").toLowerCase();
   const name = (opts?.partName ?? "").toLowerCase();
   const make = (opts?.make ?? "").toLowerCase();
@@ -156,30 +224,25 @@ export function pickBestAffiliateLink(
     brand.includes("motorcraft") ||
     brand.includes("acdelco");
 
-  // Consumables / wear items: RockAuto usually wins on price when we have an OEM #
   const wearItem = /brake|rotor|pad|filter|plug|belt|wiper|sensor|gasket|seal|oring|o-ring/.test(
     name
   );
-  // Lifetime-warranty / OE-critical: FCP Euro (mainly European cars)
   const warrantySensitive =
     genuine || /gasket|seal|pump|thermostat|control arm|mount|coil/.test(name);
-  // Fast ship nice-to-have (fluids, batteries, small stuff)
   const convenienceItem = /fluid|oil|coolant|battery|wiper/.test(name);
 
   const scores: Record<string, number> = {
-    rockauto: 0.55,
-    amazon: 0.45,
-    fcpeuro: euroMake ? 0.5 : 0.25,
-    ebay: 0.35,
+    amazon: 0.7,
+    ebay: 0.55,
+    rockauto: 0.35,
+    fcpeuro: euroMake ? 0.45 : 0.2,
   };
 
-  if (hasOem || wearItem) scores.rockauto += 0.35;
-  if (euroMake && (warrantySensitive || oeSupplier)) scores.fcpeuro += 0.3;
-  if (euroMake && genuine) scores.fcpeuro += 0.35;
-  if (convenienceItem) scores.amazon += 0.25;
-  // Used market only when it might be cheaper and not safety-critical brakes
+  if (hasOem || wearItem) scores.rockauto += 0.15;
+  if (euroMake && (warrantySensitive || oeSupplier)) scores.fcpeuro += 0.25;
+  if (euroMake && genuine) scores.fcpeuro += 0.25;
+  if (convenienceItem) scores.amazon += 0.2;
   if (!/brake|rotor|pad|sensor/.test(name)) scores.ebay += 0.1;
-  // Tiny commission nudge — not enough to override a clear cheaper/reliable pick
   const programs = affiliateProgramsConfigured();
   if (programs.amazon) scores.amazon += 0.05;
   if (programs.ebay) scores.ebay += 0.05;
@@ -209,16 +272,35 @@ export function bestBuyForPart(q: PartAffiliateQuery): AffiliateLink {
 
 export type PricedAffiliateLink = AffiliateLink & { estimatedPrice: number };
 
+export type ProductBuyBundle = {
+  amazon: PricedAffiliateLink;
+  ebay: PricedAffiliateLink;
+  rockAuto: PricedAffiliateLink;
+};
+
+/** Amazon + eBay primary CTAs; RockAuto priced for the secondary wholesaler link. */
+export function buildProductBuyBundle(
+  q: PartAffiliateQuery,
+  catalogPrice: number
+): ProductBuyBundle {
+  const base = Math.max(0.01, catalogPrice);
+  const price = (factor: number) => Math.round(base * factor * 100) / 100;
+  return {
+    amazon: { ...buildAmazonLink(q), estimatedPrice: price(1.02) },
+    ebay: { ...buildEbayLink(q), estimatedPrice: price(0.96) },
+    rockAuto: { ...buildRockAutoLink(q), estimatedPrice: price(0.88) },
+  };
+}
+
 /**
  * Estimate relative store prices from our catalog reference price, then sort
- * cheapest-first. Used for the single "Buy on X ($Y)" CTA.
+ * cheapest-first. Used for legacy single-CTA flows.
  */
 export function pricedAffiliateLinks(
   q: PartAffiliateQuery,
   catalogPrice: number
 ): PricedAffiliateLink[] {
   const base = Math.max(0.01, catalogPrice);
-  // Typical street pricing vs a catalog mid-point (not live quotes)
   const factors: Record<string, number> = {
     rockauto: 0.9,
     ebay: 0.94,
@@ -250,7 +332,6 @@ export function cleanPartDisplayName(
     .replace(/\s*\(Budget\)\s*/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
-  // Drop vehicle suffix after em dash / dash for a short title
   const base = n.split(/\s*[—–]\s*/)[0]?.trim() || n;
   const brandTrim = brand?.trim() ?? "";
   if (
@@ -263,7 +344,6 @@ export function cleanPartDisplayName(
   if (/^genuine\b/i.test(brandTrim) && !/^genuine\b/i.test(base)) {
     return `${brandTrim} ${base}`.replace(/\s+/g, " ").trim();
   }
-  // Premium rows: strip any leftover budget wording
   if (opts?.isPremium) {
     return base.replace(/\bbudget\b/gi, "").replace(/\s+/g, " ").trim();
   }

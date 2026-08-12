@@ -71,6 +71,8 @@ function mergeVehicleFromText(
       quantity: 1,
       mechanicPrice: p.mechanicPrice,
       oemPartNumber: null as string | null,
+      amazonAsin: null as string | null,
+      ebayItemId: null as string | null,
     }));
 
   return {
@@ -315,6 +317,8 @@ export async function processEstimate(estimateId: string): Promise<void> {
           quantity: Math.max(1, p.quantity),
           mechanicPrice: p.mechanicPrice,
           oemPartNumber: normalizeOemNumber(p.oemPartNumber),
+          amazonAsin: p.amazonAsin ?? null,
+          ebayItemId: p.ebayItemId ?? null,
         })),
       });
     }

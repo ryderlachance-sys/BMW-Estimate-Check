@@ -435,6 +435,8 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
       quantity: extractQuantity(line),
       mechanicPrice: price,
       oemPartNumber: extractOem(line),
+      amazonAsin: null,
+      ebayItemId: null,
     });
   }
 
@@ -469,6 +471,8 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
       quantity: 1,
       mechanicPrice: kp.mechanicPrice,
       oemPartNumber: null,
+      amazonAsin: null,
+      ebayItemId: null,
     });
   }
 

@@ -142,6 +142,8 @@ model EstimateItem {
   quantity      Int     @default(1)
   mechanicPrice Float
   oemPartNumber String?
+  amazonAsin    String?
+  ebayItemId    String?
 
   estimate    Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   comparisons Comparison[]
@@ -162,6 +164,8 @@ model CatalogPart {
   compatibleMakes  String[]    @default([])
   price            Float
   imageUrl         String?
+  amazonAsin       String?
+  ebayItemId       String?
   stockStatus      StockStatus @default(IN_STOCK)
   createdAt        DateTime    @default(now())
 

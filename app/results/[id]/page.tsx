@@ -14,7 +14,7 @@ import { ConfirmVehicleForm } from "@/components/confirm-vehicle-form";
 import { CatalogPartImage } from "@/components/catalog-part-image";
 import { PasteEstimateFallback } from "@/components/paste-estimate-fallback";
 import { PartBuyAction } from "@/components/part-buy-action";
-import { cleanPartDisplayName, pricedAffiliateLinks } from "@/lib/affiliates";
+import { cleanPartDisplayName, buildProductBuyBundle } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -187,8 +187,10 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 make: estimate.vehicle.make,
                 model: estimate.vehicle.model,
                 engine: estimate.vehicle.engine,
+                amazonAsin: item.amazonAsin,
+                ebayItemId: item.ebayItemId,
               };
-              const priced = pricedAffiliateLinks(query, item.mechanicPrice * 0.55);
+              const bundle = buildProductBuyBundle(query, item.mechanicPrice * 0.55);
               return (
                 <li
                   key={item.id}
@@ -203,7 +205,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                     </p>
                   </div>
                   <PartBuyAction
-                    pricedLinks={priced}
+                    bundle={bundle}
                     className="sm:w-auto sm:shrink-0"
                     fitment={{
                       year: estimate.vehicle.year,
@@ -314,8 +316,10 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                     make: estimate.vehicle.make,
                     model: estimate.vehicle.model,
                     engine: estimate.vehicle.engine,
+                    amazonAsin: c.catalogPart.amazonAsin ?? c.estimateItem?.amazonAsin,
+                    ebayItemId: c.catalogPart.ebayItemId ?? c.estimateItem?.ebayItemId,
                   };
-                  const priced = pricedAffiliateLinks(query, c.ourPrice);
+                  const bundle = buildProductBuyBundle(query, c.ourPrice);
                   const title = cleanPartDisplayName(
                     c.catalogPart.brand,
                     c.catalogPart.name,
@@ -359,7 +363,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                         </div>
                       </div>
                       <PartBuyAction
-                        pricedLinks={priced}
+                        bundle={bundle}
                         className="sm:w-auto sm:shrink-0"
                         fitment={{
                           year: estimate.vehicle.year,
