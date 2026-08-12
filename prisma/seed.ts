@@ -21,6 +21,7 @@ interface SeedPart {
   oemNumbers: string[];
   compatibleModels: string[];
   compatibleYears: number[];
+  compatibleMakes?: string[];
   price: number;
   imageUrl?: string;
   stockStatus?: StockStatus;
@@ -864,6 +865,54 @@ const parts: SeedPart[] = [
     compatibleYears: G90_M5_YEARS,
     price: 389.99,
   },
+  {
+    sku: "TYT-OF-CAMRY",
+    brand: "Toyota",
+    name: "Oil Filter — Camry / RAV4",
+    description: "Genuine Toyota oil filter for popular 4-cyl Camry and RAV4 applications.",
+    category: "Filters",
+    oemNumbers: ["90915YZZD4"],
+    compatibleModels: ["Camry", "RAV4"],
+    compatibleYears: [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
+    compatibleMakes: ["Toyota"],
+    price: 8.99,
+  },
+  {
+    sku: "DEN-PLUG-CAMRY",
+    brand: "Denso",
+    name: "Spark Plug — Camry 2.5L",
+    description: "OE-supplier iridium spark plug commonly used on Toyota 2.5L engines.",
+    category: "Ignition",
+    oemNumbers: ["9091901222"],
+    compatibleModels: ["Camry", "RAV4", "Highlander"],
+    compatibleYears: [2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    compatibleMakes: ["Toyota"],
+    price: 14.99,
+  },
+  {
+    sku: "HON-OF-CIVIC",
+    brand: "Honda",
+    name: "Oil Filter — Civic / Accord",
+    description: "Genuine Honda oil filter for Civic and Accord.",
+    category: "Filters",
+    oemNumbers: ["15400PLMA01"],
+    compatibleModels: ["Civic", "Accord"],
+    compatibleYears: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    compatibleMakes: ["Honda"],
+    price: 9.49,
+  },
+  {
+    sku: "MTC-PAD-F150",
+    brand: "Motorcraft",
+    name: "Front Brake Pad Set — F-150",
+    description: "Motorcraft front brake pads for late-model Ford F-150.",
+    category: "Brakes",
+    oemNumbers: ["BR1210"],
+    compatibleModels: ["F-150"],
+    compatibleYears: [2015, 2016, 2017, 2018, 2019, 2020],
+    compatibleMakes: ["Ford"],
+    price: 79.99,
+  },
 ];
 
 const demoVehicles = [
@@ -872,6 +921,9 @@ const demoVehicles = [
   { year: 2021, model: "340i", trim: "M340i xDrive", engine: "B58", vin: "WBA5U9C08M9E12345" },
   { year: 2016, model: "M3", trim: "Competition", engine: "S55", vin: "WBS8M9C55G5D30217" },
   { year: 2022, model: "X5", trim: "xDrive40i", engine: "B58", vin: "5UXCR6C05N9F54321" },
+  { year: 2020, model: "Camry", trim: "SE", engine: "2.5L", vin: "4T1C11AK5LU123456", make: "Toyota" },
+  { year: 2019, model: "Civic", trim: "Sport", engine: "1.5T", vin: "2HGFC2F59KH123456", make: "Honda" },
+  { year: 2018, model: "F-150", trim: "XLT", engine: "5.0", vin: "1FTEW1E50JFC12345", make: "Ford" },
 ];
 
 async function main() {
@@ -879,6 +931,7 @@ async function main() {
   for (const part of parts) {
     const payload = {
       ...part,
+      compatibleMakes: part.compatibleMakes ?? ["BMW"],
       stockStatus: part.stockStatus ?? ("IN_STOCK" as StockStatus),
       imageUrl: part.imageUrl ?? catalogImageForCategory(part.category),
     };
@@ -907,7 +960,10 @@ async function main() {
       where: { userId: demoUser.id, vin: v.vin },
     });
     if (!exists) {
-      await db.vehicle.create({ data: { ...v, make: "BMW", userId: demoUser.id } });
+      const { make, ...rest } = v as typeof v & { make?: string };
+      await db.vehicle.create({
+        data: { ...rest, make: make ?? "BMW", userId: demoUser.id },
+      });
     }
   }
   console.log(`  ${demoVehicles.length} demo vehicles ensured.`);

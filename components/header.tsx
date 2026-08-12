@@ -21,7 +21,7 @@ export function Header() {
             <Wrench className="size-5" />
           </span>
           <span className="text-lg font-bold tracking-tight">
-            BMW <span className="text-primary">Estimate Check</span>
+            Engine <span className="text-primary">Genie</span>
           </span>
         </Link>
 

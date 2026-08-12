@@ -42,7 +42,7 @@ export function Hero() {
           <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0}>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium text-zinc-300">
               <Sparkles className="size-3.5 text-[#4da3dd]" />
-              Instant estimate analysis for BMW owners
+              Instant estimate analysis for any car
             </span>
           </motion.div>
           <motion.h1
@@ -54,7 +54,7 @@ export function Hero() {
           >
             Stop Overpaying for{" "}
             <span className="bg-gradient-to-r from-[#4da3dd] to-[#0066B1] bg-clip-text text-transparent">
-              BMW Repairs
+              Car Repairs
             </span>
           </motion.h1>
           <motion.p
@@ -64,9 +64,9 @@ export function Hero() {
             custom={2}
             className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-400"
           >
-            Upload your mechanic&apos;s estimate. We match the parts to online prices and
-            show how much you can save — then you buy from Amazon, RockAuto, FCP Euro, or
-            eBay. Free to use; retailers ship to you.
+            Upload your mechanic&apos;s estimate — BMW, Toyota, Honda, Ford, or anything else.
+            We match the parts to online prices and show how much you can save, then you buy
+            from Amazon, RockAuto, FCP Euro, or eBay. Free to use; retailers ship to you.
           </motion.p>
           <motion.div
             variants={fadeUp}
@@ -136,7 +136,7 @@ function SavingsExampleCard() {
         <CardContent className="p-6 sm:p-8">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
-              Example — 2015 BMW 335i
+              Example — shop vs online
             </p>
             <span className="rounded-full bg-[#0066B1]/20 px-3 py-1 text-xs font-bold text-[#4da3dd]">
               Real savings
@@ -244,8 +244,8 @@ export function HowItWorks() {
 
 const trustItems = [
   { stat: "38%", label: "average savings on parts vs. shop pricing" },
-  { stat: "11-digit", label: "OEM part-number matching for exact fitment" },
-  { stat: "100%", label: "genuine BMW & OE-supplier brands like Lemförder, Bosch, Sachs" },
+  { stat: "Any make", label: "BMW, Toyota, Honda, Ford, and more" },
+  { stat: "OEM + OE", label: "genuine & OE-supplier brands when we match a part" },
   { stat: "$0", label: "to use — upload and compare estimates completely free" },
 ];
 

@@ -11,23 +11,23 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: {
-    default: "BMW Estimate Check — Stop Overpaying for BMW Repairs",
-    template: "%s | BMW Estimate Check",
+    default: "Engine Genie — Stop Overpaying for Car Repairs",
+    template: "%s | Engine Genie",
   },
   description:
-    "Upload your BMW mechanic estimate. Our AI compares it against OEM and premium aftermarket part prices so you know exactly how much you can save.",
+    "Upload any mechanic estimate. We compare it against real part prices so you know how much you can save — then buy from Amazon, RockAuto, FCP Euro, or eBay.",
   openGraph: {
     type: "website",
-    siteName: "BMW Estimate Check",
-    title: "BMW Estimate Check — Stop Overpaying for BMW Repairs",
+    siteName: "Engine Genie",
+    title: "Engine Genie — Stop Overpaying for Car Repairs",
     description:
-      "AI-powered estimate analysis for BMW owners. Compare mechanic quotes with real part prices and buy the parts yourself.",
+      "AI-powered estimate analysis for any car. Compare mechanic quotes with real part prices and buy online.",
     url: appUrl,
   },
   twitter: {
     card: "summary_large_image",
-    title: "BMW Estimate Check",
-    description: "Stop overpaying for BMW repairs. Compare your mechanic's estimate with real part prices.",
+    title: "Engine Genie",
+    description: "Stop overpaying for repairs. Compare your estimate with real part prices.",
   },
 };
 

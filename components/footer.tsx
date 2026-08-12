@@ -13,15 +13,15 @@ export function Footer() {
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
         <div className="md:col-span-2">
           <p className="text-lg font-bold text-white">
-            BMW <span className="text-[#4da3dd]">Estimate Check</span>
+            Engine <span className="text-[#4da3dd]">Genie</span>
           </p>
           <p className="mt-3 max-w-sm text-sm leading-relaxed">
-            Upload your mechanic&apos;s estimate, see what the parts really cost online, and
-            buy from trusted retailers. Free to use.
+            Upload any shop estimate, see what the parts really cost online, and buy from
+            trusted retailers. Works for BMW, Toyota, Honda, Ford, and more.
           </p>
           <p className="mt-6 text-xs text-zinc-500">
-            Not affiliated with BMW AG. BMW is a registered trademark of BMW AG.
-            As an Amazon Associate and participant in other affiliate programs, we may
+            Not affiliated with any vehicle manufacturer. Brand names are trademarks of their
+            owners. As an Amazon Associate and participant in other affiliate programs, we may
             earn from qualifying purchases at no extra cost to you.
           </p>
         </div>
@@ -33,7 +33,7 @@ export function Footer() {
           </ul>
         </div>
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-white">Common Repairs</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-white">Guides</p>
           <ul className="mt-4 space-y-2 text-sm">
             {repairLinks.map((l) => (
               <li key={l.href}>
@@ -44,7 +44,7 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-zinc-800 py-6 text-center text-xs text-zinc-500">
-        © {new Date().getFullYear()} BMW Estimate Check. All rights reserved.
+        © {new Date().getFullYear()} Engine Genie. All rights reserved.
       </div>
     </footer>
   );

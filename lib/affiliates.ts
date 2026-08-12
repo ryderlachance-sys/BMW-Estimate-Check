@@ -18,12 +18,13 @@ export type PartAffiliateQuery = {
   oemNumbers?: string[] | null;
   oemPartNumber?: string | null;
   year?: number | null;
+  make?: string | null;
   model?: string | null;
   engine?: string | null;
 };
 
 function firstOem(q: PartAffiliateQuery): string | null {
-  const fromList = q.oemNumbers?.find((n) => n && /\d{7,}/.test(n));
+  const fromList = q.oemNumbers?.find((n) => n && /[0-9A-Za-z]{7,}/.test(n));
   if (fromList) return fromList.replace(/[^0-9A-Za-z]/g, "");
   if (q.oemPartNumber) return q.oemPartNumber.replace(/[^0-9A-Za-z]/g, "");
   return null;
@@ -40,7 +41,7 @@ function cleanName(name: string): string {
 function vehiclePhrase(q: PartAffiliateQuery): string {
   const bits = [
     q.year ? String(q.year) : null,
-    "BMW",
+    q.make && q.make !== "Unknown" ? q.make : null,
     q.model ?? null,
     q.engine ?? null,
   ].filter(Boolean);
@@ -51,8 +52,9 @@ function amazonSearchQuery(q: PartAffiliateQuery): string {
   const name = cleanName(q.name);
   const vehicle = vehiclePhrase(q);
   if (vehicle && name) return `${vehicle} ${name}`;
-  if (name) return `BMW ${name}`;
-  return vehicle || "BMW auto parts";
+  if (name && q.make && q.make !== "Unknown") return `${q.make} ${name}`;
+  if (name) return name;
+  return vehicle || "auto parts";
 }
 
 function partsSearchQuery(q: PartAffiliateQuery): string {
@@ -61,7 +63,7 @@ function partsSearchQuery(q: PartAffiliateQuery): string {
   const name = cleanName(q.name);
   const vehicle = vehiclePhrase(q);
   if (vehicle && name) return `${vehicle} ${name}`;
-  return `BMW ${name}`.trim();
+  return name.trim();
 }
 
 function withAmazonTag(url: string): string {
@@ -132,11 +134,13 @@ export function buildAffiliateLinks(q: PartAffiliateQuery): AffiliateLink[] {
  */
 export function pickBestAffiliateLink(
   links: AffiliateLink[],
-  opts?: { brand?: string; partName?: string; hasOem?: boolean }
+  opts?: { brand?: string; partName?: string; hasOem?: boolean; make?: string }
 ): AffiliateLink {
   const brand = (opts?.brand ?? "").toLowerCase();
   const name = (opts?.partName ?? "").toLowerCase();
+  const make = (opts?.make ?? "").toLowerCase();
   const hasOem = Boolean(opts?.hasOem);
+  const euroMake = /bmw|mini|audi|volkswagen|vw|mercedes|porsche|volvo/.test(make);
 
   const genuine = brand.includes("genuine");
   const oeSupplier =
@@ -147,13 +151,16 @@ export function pickBestAffiliateLink(
     brand.includes("lemf") ||
     brand.includes("elring") ||
     brand.includes("ngk") ||
-    brand.includes("mann");
+    brand.includes("mann") ||
+    brand.includes("denso") ||
+    brand.includes("motorcraft") ||
+    brand.includes("acdelco");
 
   // Consumables / wear items: RockAuto usually wins on price when we have an OEM #
   const wearItem = /brake|rotor|pad|filter|plug|belt|wiper|sensor|gasket|seal|oring|o-ring/.test(
     name
   );
-  // Lifetime-warranty / OE-critical: FCP Euro
+  // Lifetime-warranty / OE-critical: FCP Euro (mainly European cars)
   const warrantySensitive =
     genuine || /gasket|seal|pump|thermostat|control arm|mount|coil/.test(name);
   // Fast ship nice-to-have (fluids, batteries, small stuff)
@@ -162,13 +169,13 @@ export function pickBestAffiliateLink(
   const scores: Record<string, number> = {
     rockauto: 0.55,
     amazon: 0.45,
-    fcpeuro: 0.5,
+    fcpeuro: euroMake ? 0.5 : 0.25,
     ebay: 0.35,
   };
 
   if (hasOem || wearItem) scores.rockauto += 0.35;
-  if (warrantySensitive || oeSupplier) scores.fcpeuro += 0.3;
-  if (genuine) scores.fcpeuro += 0.35; // Genuine BMW → prefer FCP Euro warranty
+  if (euroMake && (warrantySensitive || oeSupplier)) scores.fcpeuro += 0.3;
+  if (euroMake && genuine) scores.fcpeuro += 0.35;
   if (convenienceItem) scores.amazon += 0.25;
   // Used market only when it might be cheaper and not safety-critical brakes
   if (!/brake|rotor|pad|sensor/.test(name)) scores.ebay += 0.1;
@@ -176,7 +183,7 @@ export function pickBestAffiliateLink(
   const programs = affiliateProgramsConfigured();
   if (programs.amazon) scores.amazon += 0.05;
   if (programs.ebay) scores.ebay += 0.05;
-  if (programs.fcpEuro) scores.fcpeuro += 0.05;
+  if (programs.fcpEuro && euroMake) scores.fcpeuro += 0.05;
 
   let best = links[0];
   let bestScore = -1;
@@ -191,11 +198,12 @@ export function pickBestAffiliateLink(
 }
 
 export function bestBuyForPart(q: PartAffiliateQuery): AffiliateLink {
-  const oem = q.oemNumbers?.some((n) => n && /\d{7,}/.test(n)) || Boolean(q.oemPartNumber);
+  const oem = q.oemNumbers?.some((n) => n && /[0-9A-Za-z]{7,}/.test(n)) || Boolean(q.oemPartNumber);
   return pickBestAffiliateLink(buildAffiliateLinks(q), {
     brand: q.brand,
     partName: q.name,
     hasOem: Boolean(oem),
+    make: q.make ?? undefined,
   });
 }
 

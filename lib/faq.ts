@@ -1,7 +1,7 @@
 export const faqItems = [
   {
-    q: "Which BMWs do you support?",
-    a: "Every modern BMW — from the E90/F30 3 Series through the G20 generation, M cars, and X-series SAVs. We match parts with verified fitment when we can read the year and model from your estimate.",
+    q: "Which cars do you support?",
+    a: "Any make — BMW, Toyota, Honda, Ford, Chevy, and more. Upload your estimate and we'll read the year/make/model when it's printed. BMW still has the deepest catalog coverage.",
   },
   {
     q: "How accurate is the estimate parsing?",
@@ -9,11 +9,11 @@ export const faqItems = [
   },
   {
     q: "Are these cheap knock-off parts?",
-    a: "No. We point you to Genuine BMW and OE suppliers — brands like Lemförder, Sachs, Bosch, Mahle, Pierburg, and NGK — on retailers like RockAuto, FCP Euro, Amazon, and eBay.",
+    a: "No. We point you to OEM and OE-supplier brands on retailers like RockAuto, FCP Euro, Amazon, and eBay.",
   },
   {
     q: "Do you sell or ship the parts?",
-    a: "No. This site is free. You buy from the retailer we recommend (Amazon, RockAuto, FCP Euro, or eBay). They ship to you. We may earn a small commission when you use those links — at no extra cost to you.",
+    a: "No. This site is free. You buy from the retailer we recommend. They ship to you. We may earn a small commission when you use those links — at no extra cost to you.",
   },
   {
     q: "Do you install the parts?",

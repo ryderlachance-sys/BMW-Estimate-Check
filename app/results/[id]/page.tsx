@@ -57,13 +57,14 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
     // Older failed uploads that only lacked vehicle info — offer the form too
     const vehicleMissingMsg =
       estimate.errorMessage?.toLowerCase().includes("year/model") ||
+      estimate.errorMessage?.toLowerCase().includes("couldn't find your") ||
       estimate.errorMessage?.toLowerCase().includes("couldn't find your bmw");
 
     if (needsVehicle || vehicleMissingMsg) {
       return (
         <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
           <Car className="mx-auto size-10 text-primary" />
-          <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Tell us your BMW</h1>
+          <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Tell us your car</h1>
           <ConfirmVehicleForm estimateId={estimate.id} />
           <div className="mt-6 flex justify-center gap-3">
             <RetryParseButton estimateId={estimate.id} />
@@ -100,7 +101,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
         <Car className="mx-auto size-10 text-primary" />
-        <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Tell us your BMW</h1>
+        <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Tell us your car</h1>
         <ConfirmVehicleForm estimateId={estimate.id} />
       </div>
     );
@@ -114,7 +115,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
       : estimate.items.reduce((s, i) => s + i.mechanicPrice, 0)
   );
   const onlineParts = round2(comparisons.reduce((s, c) => s + c.ourPrice, 0));
-  const carLabel = `${estimate.vehicle.year} BMW ${estimate.vehicle.model}${
+  const carLabel = `${estimate.vehicle.year} ${estimate.vehicle.make !== "Unknown" ? estimate.vehicle.make + " " : ""}${estimate.vehicle.model}${
     estimate.vehicle.engine ? ` · ${estimate.vehicle.engine}` : ""
   }`;
 
@@ -185,6 +186,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             oemNumbers: c.catalogPart.oemNumbers,
             oemPartNumber: c.estimateItem?.oemPartNumber,
             year: estimate.vehicle.year,
+            make: estimate.vehicle.make,
             model: estimate.vehicle.model,
             engine: estimate.vehicle.engine,
           };

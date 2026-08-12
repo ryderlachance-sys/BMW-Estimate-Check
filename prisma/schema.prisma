@@ -100,7 +100,7 @@ model Vehicle {
   id        String   @id @default(cuid())
   userId    String
   year      Int
-  make      String   @default("BMW")
+  make      String   @default("Unknown")
   model     String
   trim      String?
   engine    String?
@@ -159,6 +159,7 @@ model CatalogPart {
   oemNumbers       String[]    @default([])
   compatibleModels String[]    @default([])
   compatibleYears  Int[]       @default([])
+  compatibleMakes  String[]    @default([])
   price            Float
   imageUrl         String?
   stockStatus      StockStatus @default(IN_STOCK)

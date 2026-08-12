@@ -9,6 +9,12 @@ import type { CatalogPart, EstimateItem, Vehicle } from "@prisma/client";
  */
 const BRAND_RANK: Record<string, number> = {
   "genuine bmw": 3,
+  "genuine toyota": 3,
+  "genuine honda": 3,
+  motorcraft: 2,
+  denso: 2,
+  acdelco: 2,
+  "aisin": 2,
   lemforder: 2,
   lemförder: 2,
   sachs: 2,
@@ -128,6 +134,8 @@ export function similarityScore(itemDescription: string, part: CatalogPart): num
 
 export function normalizeOemNumber(value: string | null | undefined): string | null {
   if (!value) return null;
+  const cleaned = value.replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+  if (cleaned.length >= 7) return cleaned;
   const digits = value.replace(/[^0-9]/g, "");
   return digits.length >= 7 ? digits : null;
 }
@@ -141,6 +149,13 @@ function extractEngineCodes(text: string): string[] {
 }
 
 function isCompatible(part: CatalogPart, vehicle: Vehicle): boolean {
+  const makeOk =
+    part.compatibleMakes.length === 0 ||
+    part.compatibleMakes.some(
+      (m) => m.toLowerCase() === (vehicle.make || "").toLowerCase()
+    );
+  if (!makeOk) return false;
+
   const modelOk =
     part.compatibleModels.length === 0 ||
     part.compatibleModels.some(

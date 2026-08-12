@@ -5,6 +5,10 @@ export const ParsedEstimateSchema = z.object({
   vehicle: z
     .object({
       year: z.number().int().nullable(),
+      make: z
+        .string()
+        .nullable()
+        .describe("Vehicle make/manufacturer if present, e.g. BMW, Toyota, Honda, Ford"),
       model: z.string().nullable(),
       engine: z.string().nullable(),
     })
@@ -24,7 +28,9 @@ export const ParsedEstimateSchema = z.object({
         oemPartNumber: z
           .string()
           .nullable()
-          .describe("BMW OEM part number if printed on the estimate, digits only"),
+          .describe(
+            "OEM / manufacturer part number if printed (BMW 11-digit, Toyota 5-5, Honda 5-3-3, etc.), digits/letters only"
+          ),
       })
     )
     .describe("Every part line item on the estimate. Exclude labor, shop fees and taxes."),

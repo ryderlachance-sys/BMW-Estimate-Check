@@ -13,9 +13,9 @@ import type { Prisma } from "@prisma/client";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "BMW Parts Catalog",
+  title: "Parts Catalog",
   description:
-    "Shop genuine BMW and OE-supplier parts: control arms, water pumps, brakes, suspension, ignition and more. Verified fitment by model and year.",
+    "Browse OEM and OE-supplier parts with fitment by make, model, and year. Buy via Amazon, RockAuto, FCP Euro, or eBay.",
   alternates: { canonical: "/catalog" },
 };
 

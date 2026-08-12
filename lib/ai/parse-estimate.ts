@@ -24,16 +24,20 @@ function getClient(): OpenAI {
   });
 }
 
-const SYSTEM_PROMPT = `You are an expert BMW service advisor. You read mechanic repair estimates
-(invoices, quotes, screenshots) and extract structured data.
+const SYSTEM_PROMPT = `You are an expert auto service advisor. You read mechanic repair estimates
+(invoices, quotes, screenshots) for ANY car make and extract structured data.
 
 Rules:
 - Extract EVERY part line item. Do not invent parts that are not on the estimate.
 - "mechanicPrice" is the parts price the shop quoted for that line (quantity included), in USD.
 - Labor, shop supplies, hazmat fees and tax are NOT parts — exclude them from the parts array.
 - Sum all labor lines into "laborTotal".
-- BMW OEM part numbers are 11-digit numbers, sometimes formatted like "31 12 6 852 991".
-  Normalize them to digits only (e.g. "31126852991"). Use null when not printed.
+- Extract vehicle make (BMW, Toyota, Honda, Ford, etc.), year, model, and engine when printed.
+- OEM part numbers vary by make:
+  - BMW: often 11 digits, e.g. "31 12 6 852 991" → "31126852991"
+  - Toyota/Lexus: often #####-##### 
+  - Honda/Acura: often #####-###-###
+  Normalize to alphanumeric only. Use null when not printed.
 - "totalEstimate" is the grand total of the whole estimate.
 - Use null for anything that is not present on the document.`;
 

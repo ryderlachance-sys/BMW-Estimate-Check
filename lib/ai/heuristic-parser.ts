@@ -1,6 +1,11 @@
 import "server-only";
 import { ParsedEstimateSchema, type ParsedEstimate } from "./schema";
 import { repairOcrText, sanitizeGrandTotal } from "@/lib/ocr/repair";
+import {
+  extractMakeFromText,
+  extractNonBmwModel,
+  normalizeMake,
+} from "@/lib/vehicles";
 
 /**
  * Zero-cost estimate parser: extracts parts, labor, and totals from estimate
@@ -11,8 +16,12 @@ import { repairOcrText, sanitizeGrandTotal } from "@/lib/ocr/repair";
 // Money: "$1,234.56", "1234.56", or "$850" (bare integers require a $ sign).
 const MONEY_RE = /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)|(?<![\d.])(\d{1,3}(?:,\d{3})*\.\d{2})(?![\d%])/g;
 
-// BMW OEM part numbers: 11 digits, often grouped "31 12 6 852 991".
-const OEM_RE = /\b(\d{2})[\s.-]?(\d{2})[\s.-]?(\d)[\s.-]?(\d{3})[\s.-]?(\d{3})\b/;
+// BMW OEM: 11 digits. Also Toyota 5-5, Honda 5-3-3, generic 7–12 digit.
+const BMW_OEM_RE = /\b(\d{2})[\s.-]?(\d{2})[\s.-]?(\d)[\s.-]?(\d{3})[\s.-]?(\d{3})\b/;
+const TOYOTA_OEM_RE = /\b(\d{5})-(\d{5})\b/;
+const HONDA_OEM_RE = /\b(\d{5})-(\d{3})-(\d{3})\b/;
+const GENERIC_OEM_RE = /\b([A-Z0-9]{2,5}-[A-Z0-9]{3,8}(?:-[A-Z0-9]{1,4})?)\b/i;
+const OEM_RE = BMW_OEM_RE;
 
 const LABOR_RE =
   /\b(labor|labour|diagnos\w*|misfire|r\s*&\s*r|r\s*\/\s*r|remove\s+(and|&)\s+replace|install(ation)?\s+(fee|charge)|shop\s+time|\d+\.?\d*\s*hr\b|hr\s*@|hours?\s*@)\b/i;
@@ -32,7 +41,7 @@ const MODEL_RE =
   /\b(M340i|M550i|M\d|[0-9]{3}\s?[a-z]{1,2}|X[1-7]\s?M?|Z4|i[3-8]|iX)\b/i;
 const ENGINE_RE = /\b([NBS]\d{2}|S55|S58|S63|S68|B46|B48|B58)[A-Z]?\b/i;
 
-function normalizeModel(raw: string): string {
+function normalizeBmwModel(raw: string): string {
   return raw
     .replace(/\s+/g, "")
     .toUpperCase()
@@ -41,24 +50,47 @@ function normalizeModel(raw: string): string {
     .replace(/^(I)(\d)$/i, (_, _i, n) => `i${n}`);
 }
 
-/** Pull year / model / engine from estimate text (labeled fields preferred). */
+function normalizeModel(raw: string): string {
+  // Keep spaces for names like "Grand Cherokee" / "Model 3"
+  if (/\s/.test(raw) || /^(Camry|Civic|Accord|RAV4|F-150)/i.test(raw)) {
+    return raw.replace(/\s+/g, " ").trim();
+  }
+  return normalizeBmwModel(raw);
+}
+
+/** Pull year / make / model / engine from estimate text (labeled fields preferred). */
 export function extractVehicleFromText(text: string): {
   year: number | null;
+  make: string | null;
   model: string | null;
   engine: string | null;
 } {
   const fullText = text.replace(/\s+/g, " ");
 
   let year: number | null = null;
+  let make: string | null = extractMakeFromText(fullText);
   let model: string | null = null;
   let engine: string | null = null;
+
+  // Non-BMW popular model names first when make isn't BMW
+  if (!model && make?.toLowerCase() !== "bmw") {
+    model = extractNonBmwModel(fullText);
+  }
+  if (!model && !make) {
+    const nonBmw = extractNonBmwModel(fullText);
+    if (nonBmw) {
+      model = nonBmw;
+      make = extractMakeFromText(fullText) ?? make;
+    }
+  }
 
   // Dealer forms: "Model 630i M Sport" / OCR "63h M Sport" near Model:
   const modelNearSport = fullText.match(
     /\b(\d{2}[h1l]|\d{3}[a-zh1l]{1,2}|M[2-8]|X[1-7]|i[3-8]|iX)\s+M\s*Sport\b/i
   );
   if (modelNearSport) {
-    model = normalizeModel(repairModelToken(modelNearSport[1]));
+    model = normalizeBmwModel(repairModelToken(modelNearSport[1]));
+    make = make ?? "BMW";
   }
 
   if (!model) {
@@ -87,16 +119,37 @@ export function extractVehicleFromText(text: string): {
   const series = fullText.match(/\bSeries\s*:?\s*(G\d{2}|F\d{2}|E\d{2})\b/i);
   if (!model && series) {
     const code = series[1].toUpperCase();
-    if (code.startsWith("G32") || code === "G32") model = "630i"; // common on G32 estimates
+    if (code.startsWith("G32") || code === "G32") {
+      model = "630i";
+      make = make ?? "BMW";
+    }
   }
 
-  // Explicit "Vehicle: 2020 BMW M5"
+  // Explicit "Vehicle: 2020 BMW M5" or "2020 Toyota Camry"
   const labeled = fullText.match(
-    /(?:vehicle|veh|estimate\s+for)\s*:?\s*(19[89]\d|20[0-4]\d)\s+(?:BMW\s+)?(M340i|M550i|M\d|[0-9]{3}\s?[a-z]{1,2}|X[1-7]\s?M?|Z4|i[3-8]|iX)\b/i
+    /(?:vehicle|veh|estimate\s+for)\s*:?\s*(19[89]\d|20[0-4]\d)\s+(?:(BMW|Toyota|Honda|Ford|Chevrolet|Nissan|Hyundai|Kia|Subaru|Mazda|Volkswagen|Audi|Lexus|Jeep|Tesla)\s+)?([A-Za-z0-9][A-Za-z0-9\s-]{1,20})\b/i
   );
   if (labeled) {
     year = Number(labeled[1]);
-    if (!model) model = normalizeModel(labeled[2]);
+    if (labeled[2]) make = normalizeMake(labeled[2]) ?? make;
+    const cand = labeled[3].trim();
+    if (!model && cand.length >= 2) {
+      model = /^(M?\d{3}|X\d|i\d|iX)/i.test(cand)
+        ? normalizeBmwModel(repairModelToken(cand.split(/\s+/)[0]))
+        : cand.split(/\s+/).slice(0, 3).join(" ");
+    }
+  }
+
+  // Year + make + model: "2019 Honda Civic"
+  if (!year || !model) {
+    const ymm = fullText.match(
+      /\b(19[89]\d|20[0-4]\d)\s+(BMW|Toyota|Honda|Ford|Chevrolet|Chevy|Nissan|Hyundai|Kia|Subaru|Mazda|Volkswagen|VW|Audi|Lexus|Jeep|Tesla)\s+([A-Za-z0-9][A-Za-z0-9-]{1,20})\b/i
+    );
+    if (ymm) {
+      year = year ?? Number(ymm[1]);
+      make = make ?? normalizeMake(ymm[2]);
+      if (!model) model = ymm[3];
+    }
   }
 
   const engineLabeled = fullText.match(
@@ -119,7 +172,10 @@ export function extractVehicleFromText(text: string): {
   }
   if (!year) {
     const vehicleYearMatch = fullText.match(
-      new RegExp(`${YEAR_RE.source}\\s+(?:BMW\\b|${MODEL_RE.source})`, "i")
+      new RegExp(
+        `${YEAR_RE.source}\\s+(?:BMW\\b|Toyota\\b|Honda\\b|Ford\\b|${MODEL_RE.source})`,
+        "i"
+      )
     );
     if (vehicleYearMatch) year = Number(vehicleYearMatch[1]);
   }
@@ -129,7 +185,10 @@ export function extractVehicleFromText(text: string): {
     const afterBmw = fullText.match(
       /\bBMW\s+(?!SERVICE|MOTOR|GROUP|AG\b)(M340i|M550i|M\d|[0-9]{3}\s?[a-z]{1,2}|X[1-7]|Z4|i[3-8]|iX)\b/i
     );
-    if (afterBmw) model = normalizeModel(repairModelToken(afterBmw[1]));
+    if (afterBmw) {
+      model = normalizeBmwModel(repairModelToken(afterBmw[1]));
+      make = make ?? "BMW";
+    }
   }
 
   // Last resort: any ###i in text (skip bare "Ix" from logo noise)
@@ -138,11 +197,16 @@ export function extractVehicleFromText(text: string): {
       /\b(M340i|M550i|M[2-8]|[1-8]\d{2}\s?[idxta]{1,2}|X[1-7]|Z4|i[3-8]|iX)\b/i
     );
     if (seriesModel) {
-      const cand = normalizeModel(repairModelToken(seriesModel[1]));
-      // Don't accept lone iX unless it's clearly "BMW iX" style (already handled) —
-      // logo OCR "BMW Ix" often appears without a real iX vehicle.
-      if (cand.toLowerCase() !== "ix") model = cand;
+      const cand = normalizeBmwModel(repairModelToken(seriesModel[1]));
+      if (cand.toLowerCase() !== "ix") {
+        model = cand;
+        make = make ?? "BMW";
+      }
     }
+  }
+
+  if (!model) {
+    model = extractNonBmwModel(fullText);
   }
 
   if (!engine) {
@@ -153,11 +217,14 @@ export function extractVehicleFromText(text: string): {
   // If we have model but no year, use warranty year or leave null (manual entry)
   if (!year && model) {
     const anyYear = fullText.match(/\b(20[1-2]\d)\b/);
-    // Only as last resort when Model: / M Sport gave us a clear model
     if (anyYear) year = Number(anyYear[1]);
   }
 
-  return { year, model, engine };
+  if (model && !make) {
+    make = extractMakeFromText(fullText) ?? (MODEL_RE.test(model) ? "BMW" : null);
+  }
+
+  return { year, make, model, engine };
 }
 
 /** Fix common OCR typos in model tokens: 63h → 630i, 6401 → 640i */
@@ -178,10 +245,18 @@ function moneyValues(line: string): number[] {
 }
 
 function extractOem(line: string): string | null {
-  const match = line.match(OEM_RE);
-  if (!match) return null;
-  const digits = match.slice(1).join("");
-  return digits.length === 11 ? digits : null;
+  const bmw = line.match(BMW_OEM_RE);
+  if (bmw) {
+    const digits = bmw.slice(1).join("");
+    if (digits.length === 11) return digits;
+  }
+  const toyota = line.match(TOYOTA_OEM_RE);
+  if (toyota) return `${toyota[1]}${toyota[2]}`;
+  const honda = line.match(HONDA_OEM_RE);
+  if (honda) return `${honda[1]}${honda[2]}${honda[3]}`;
+  const generic = line.match(GENERIC_OEM_RE);
+  if (generic) return generic[1].replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+  return null;
 }
 
 function extractQuantity(line: string): number {
@@ -267,7 +342,7 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
     }
   }
 
-  const { year, model, engine } = extractVehicleFromText(text);
+  const { year, make, model, engine } = extractVehicleFromText(text);
 
   for (const line of lines) {
     const prices = moneyValues(line);
@@ -362,7 +437,7 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
 
   return ParsedEstimateSchema.parse({
     shopName,
-    vehicle: { year, model, engine },
+    vehicle: { year, make, model, engine },
     laborTotal: laborTotal > 0 ? laborTotal : null,
     parts: deduped,
     totalEstimate,

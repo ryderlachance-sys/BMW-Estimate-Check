@@ -19,7 +19,7 @@ function isLaborJunkLine(description: string): boolean {
   );
 }
 
-/** Prefer labeled ###i / G32 reads over logo OCR that invents "iX". */
+/** Prefer labeled vehicle reads over logo OCR that invents "iX". */
 function mergeVehicleFromText(
   parsed: ParsedEstimate,
   text: string | null
@@ -30,6 +30,7 @@ function mergeVehicleFromText(
   const textModel = fromText.model?.toLowerCase() ?? "";
 
   let year = fromText.year ?? parsed.vehicle.year;
+  let make = fromText.make ?? parsed.vehicle.make ?? null;
   let model = fromText.model ?? parsed.vehicle.model;
   let engine = fromText.engine ?? parsed.vehicle.engine;
 
@@ -37,15 +38,17 @@ function mergeVehicleFromText(
   if (aiModel === "ix" && textModel && textModel !== "ix") {
     model = fromText.model;
     year = fromText.year ?? year;
+    make = fromText.make ?? make ?? "BMW";
   }
   if (model?.toLowerCase() === "ix" && /63[0h]?\s*m\s*sport|\bG32\b|\b630i\b/i.test(text)) {
     model = fromText.model ?? "630i";
     year = fromText.year ?? year;
+    make = make ?? "BMW";
   }
 
   return {
     ...parsed,
-    vehicle: { year, model, engine },
+    vehicle: { year, make, model, engine },
     parts: parsed.parts.filter((p) => !isLaborJunkLine(p.description)),
   };
 }
@@ -92,7 +95,7 @@ export async function createEstimate(
     data: {
       userId: user.id,
       year: new Date().getFullYear(),
-      make: "BMW",
+      make: "Unknown",
       model: "Pending",
       trim: null,
       engine: null,
@@ -196,6 +199,7 @@ export async function processEstimate(estimateId: string): Promise<void> {
 
     // Prefer vehicle printed on the estimate; if missing, keep Pending and ask the user.
     const detectedYear = result.vehicle.year;
+    const detectedMake = result.vehicle.make;
     const detectedModel = result.vehicle.model;
     const detectedEngine = result.vehicle.engine;
     const needsVehicle =
@@ -237,11 +241,13 @@ export async function processEstimate(estimateId: string): Promise<void> {
       data: needsVehicle
         ? {
             year: detectedYear ?? new Date().getFullYear(),
+            make: detectedMake ?? "Unknown",
             model: "Pending",
             engine: null,
           }
         : {
             year: detectedYear!,
+            make: detectedMake ?? "Unknown",
             model: detectedModel!,
             ...(detectedEngine ? { engine: detectedEngine } : { engine: null }),
           },
@@ -271,10 +277,10 @@ export async function retryEstimate(estimateId: string): Promise<void> {
   await processEstimate(estimateId);
 }
 
-/** Customer fills year/model only when the estimate didn't print them clearly. */
+/** Customer fills year/make/model when the estimate didn't print them clearly. */
 export async function confirmEstimateVehicle(
   estimateId: string,
-  input: { year: number; model: string; engine?: string }
+  input: { year: number; make: string; model: string; engine?: string }
 ): Promise<{ error?: string }> {
   const user = await ensureUser();
   const estimate = await db.estimate.findUniqueOrThrow({
@@ -284,19 +290,23 @@ export async function confirmEstimateVehicle(
   if (estimate.userId !== user.id && !user.isAdmin) throw new Error("Forbidden");
 
   const year = Number(input.year);
-  const model = input.model.trim().replace(/\s+/g, "");
+  const make = input.make.trim();
+  const model = input.model.trim().replace(/\s+/g, " ");
   if (!Number.isFinite(year) || year < 1990 || year > new Date().getFullYear() + 1) {
     return { error: "Enter a valid model year." };
   }
+  if (make.length < 2) {
+    return { error: "Select your vehicle make." };
+  }
   if (model.length < 2 || model.toLowerCase() === "pending") {
-    return { error: "Enter your BMW model (e.g. 330i, M5, X5)." };
+    return { error: "Enter your model (e.g. Camry, Civic, 330i, F-150)." };
   }
 
   const engine = input.engine?.trim() ? input.engine.trim().toUpperCase() : null;
 
   await db.vehicle.update({
     where: { id: estimate.vehicleId },
-    data: { year, model, engine },
+    data: { year, make, model, engine },
   });
   await db.estimate.update({
     where: { id: estimateId },
