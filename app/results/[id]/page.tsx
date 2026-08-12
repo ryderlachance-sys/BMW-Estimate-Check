@@ -7,7 +7,6 @@ import { ensureUser } from "@/lib/auth";
 import { formatCurrency, round2 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  AddAllToCartButton,
   ProcessingPoller,
   RetryParseButton,
 } from "@/components/results-actions";
@@ -174,19 +173,11 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         </p>
       </div>
 
-      <div className="mt-8 space-y-2">
-        <AddAllToCartButton
-          estimateId={estimate.id}
-          count={comparisons.length}
-          variant="default"
-          className="h-14 w-full text-base font-bold"
-        />
-        <p className="text-center text-xs text-muted-foreground">
-          Add all parts to your cart, then pay once on this site for the whole order.
-        </p>
-      </div>
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Buy each part from the best store below. Retailers ship to you — this site is free.
+      </p>
 
-      <ul className="mt-10 space-y-3">
+      <ul className="mt-8 space-y-3">
         {comparisons.map((c) => {
           const query = {
             brand: c.catalogPart.brand,

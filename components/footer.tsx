@@ -16,8 +16,8 @@ export function Footer() {
             BMW <span className="text-[#4da3dd]">Estimate Check</span>
           </p>
           <p className="mt-3 max-w-sm text-sm leading-relaxed">
-            Upload your mechanic&apos;s estimate and instantly see what the parts really
-            cost. Built by BMW enthusiasts, for BMW owners.
+            Upload your mechanic&apos;s estimate, see what the parts really cost online, and
+            buy from trusted retailers. Free to use.
           </p>
           <p className="mt-6 text-xs text-zinc-500">
             Not affiliated with BMW AG. BMW is a registered trademark of BMW AG.
@@ -28,10 +28,8 @@ export function Footer() {
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-white">Product</p>
           <ul className="mt-4 space-y-2 text-sm">
-            <li><Link href="/upload" className="hover:text-white">Find cheaper parts</Link></li>
+            <li><Link href="/upload" className="hover:text-white">Check an estimate</Link></li>
             <li><Link href="/catalog" className="hover:text-white">Parts Catalog</Link></li>
-            <li><Link href="/dashboard" className="hover:text-white">Dashboard</Link></li>
-            <li><Link href="/cart" className="hover:text-white">Cart</Link></li>
           </ul>
         </div>
         <div>

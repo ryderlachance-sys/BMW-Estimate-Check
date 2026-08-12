@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, ShieldCheck, ShoppingCart, User, Wrench, X } from "lucide-react";
+import { Menu, ShieldCheck, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
-  { href: "/upload", label: "Find cheaper parts" },
+  { href: "/upload", label: "Check an estimate" },
   { href: "/catalog", label: "Parts Catalog" },
-  { href: "/dashboard", label: "Dashboard" },
 ];
 
 export function Header() {
@@ -53,16 +52,6 @@ export function Header() {
           <Link href="/admin" aria-label="Admin">
             <Button variant="ghost" size="icon">
               <ShieldCheck className="size-5" />
-            </Button>
-          </Link>
-          <Link href="/cart" aria-label="Cart">
-            <Button variant="ghost" size="icon">
-              <ShoppingCart className="size-5" />
-            </Button>
-          </Link>
-          <Link href="/dashboard" aria-label="Your account">
-            <Button variant="ghost" size="icon">
-              <User className="size-5" />
             </Button>
           </Link>
         </div>

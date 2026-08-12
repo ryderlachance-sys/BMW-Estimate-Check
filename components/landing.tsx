@@ -5,12 +5,11 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   BadgeDollarSign,
+  ExternalLink,
   FileScan,
-  Package,
   ShieldCheck,
   Sparkles,
   Star,
-  Truck,
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -65,9 +64,9 @@ export function Hero() {
             custom={2}
             className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-400"
           >
-            Upload your mechanic&apos;s estimate. We extract every part and labor
-            line, match it against OEM and premium aftermarket prices, and show you
-            exactly how much you could save — then let you buy the parts in one click.
+            Upload your mechanic&apos;s estimate. We match the parts to online prices and
+            show how much you can save — then you buy from Amazon, RockAuto, FCP Euro, or
+            eBay. Free to use; retailers ship to you.
           </motion.p>
           <motion.div
             variants={fadeUp}
@@ -107,7 +106,7 @@ export function Hero() {
               <Star className="size-4 text-[#4da3dd]" /> Avg. 38% parts savings
             </span>
             <span className="flex items-center gap-2">
-              <Truck className="size-4 text-[#4da3dd]" /> Free shipping over $149
+              <BadgeDollarSign className="size-4 text-[#4da3dd]" /> Free — buy at retailers
             </span>
           </motion.div>
         </div>
@@ -160,7 +159,7 @@ function SavingsExampleCard() {
               <span className="tabular-nums line-through">${shopTotal.toFixed(2)}</span>
             </div>
             <div className="mt-1 flex items-center justify-between text-sm text-zinc-400">
-              <span>Our parts total</span>
+              <span>Online parts total</span>
               <span className="tabular-nums text-white">${ourTotal.toFixed(2)}</span>
             </div>
             <div className="mt-4 flex items-center justify-between rounded-xl bg-gradient-to-r from-[#0066B1] to-[#004a80] px-5 py-4">
@@ -180,22 +179,22 @@ const steps = [
   {
     icon: Upload,
     title: "Upload your estimate",
-    body: "Snap a photo or upload the PDF your shop gave you. We read the year, model, and engine off the estimate.",
+    body: "Snap a photo or upload the PDF your shop gave you. We read the year, model, and parts off the estimate.",
   },
   {
     icon: FileScan,
     title: "We read every line",
-    body: "Parts, quantities, OEM part numbers, labor, and the total quote are extracted automatically.",
+    body: "Parts, quantities, OEM part numbers, and the quote total are extracted automatically.",
   },
   {
     icon: BadgeDollarSign,
     title: "See real prices",
-    body: "We match each part to OEM and OE-supplier equivalents and show your savings, line by line.",
+    body: "We match each part and show shop price vs online price, line by line.",
   },
   {
-    icon: Package,
-    title: "Order the parts",
-    body: "Add everything to your cart, enter your shipping address, and place the order. We handle fulfillment.",
+    icon: ExternalLink,
+    title: "Buy at a retailer",
+    body: "Click Amazon, RockAuto, FCP Euro, or eBay for each part. They ship to you — we never charge you for parts.",
   },
 ];
 
@@ -211,7 +210,7 @@ export function HowItWorks() {
       >
         <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">How it works</h2>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          From a crumpled shop estimate to parts on your doorstep in four steps.
+          From a shop estimate to cheaper parts online in four steps — no account, no cart.
         </p>
       </motion.div>
       <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { AddToCartButton, CatalogFilters } from "@/components/catalog-controls";
+import { CatalogFilters } from "@/components/catalog-controls";
 import { CatalogPartImage } from "@/components/catalog-part-image";
 import { AffiliateBuyButtons } from "@/components/affiliate-links";
 import { bestBuyForPart, buildAffiliateLinks } from "@/lib/affiliates";
@@ -166,10 +166,6 @@ export default async function CatalogPage({
                           />
                         );
                       })()}
-                      <AddToCartButton
-                        partId={part.id}
-                        disabled={part.stockStatus === "OUT_OF_STOCK"}
-                      />
                     </div>
                   </div>
                 </CardContent>
