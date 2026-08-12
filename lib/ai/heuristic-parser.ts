@@ -6,6 +6,7 @@ import {
   extractNonBmwModel,
   normalizeMake,
 } from "@/lib/vehicles";
+import { scanEstimateKeywords } from "@/lib/ai/keyword-scanner";
 
 /**
  * Zero-cost estimate parser: extracts parts, labor, and totals from estimate
@@ -342,7 +343,22 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
     }
   }
 
-  const { year, make, model, engine } = extractVehicleFromText(text);
+  const { year: kwYear, make: kwMake, model: kwModel } = (() => {
+    const scan = scanEstimateKeywords(text);
+    return scan.vehicle;
+  })();
+  let { year, make, model, engine } = extractVehicleFromText(text);
+  // Keyword scanner fills gaps / wins on Jeep Grand Cherokee fuzzy matches
+  if (kwYear && !year) year = kwYear;
+  if (kwMake) make = make ?? kwMake;
+  if (kwModel) model = model ?? kwModel;
+  if (kwMake === "Jeep" && kwModel === "Grand Cherokee") {
+    make = "Jeep";
+    model = "Grand Cherokee";
+  }
+  if (kwYear && kwMake && kwModel) {
+    year = year ?? kwYear;
+  }
 
   for (const line of lines) {
     const prices = moneyValues(line);
@@ -430,6 +446,30 @@ export function parseEstimateHeuristically(rawText: string): ParsedEstimate {
       continue;
     }
     deduped.push(p);
+  }
+
+  // Keyword scan: catch pad/rotor/etc. lines the structured parser missed
+  const kwParts = scanEstimateKeywords(text).parts;
+  for (const kp of kwParts) {
+    const key = `${kp.keyword}|${kp.mechanicPrice}`;
+    if (
+      deduped.some(
+        (d) =>
+          d.mechanicPrice === kp.mechanicPrice &&
+          d.description.toLowerCase().includes(kp.keyword)
+      )
+    ) {
+      continue;
+    }
+    if (deduped.some((d) => `${d.description.toLowerCase()}|${d.mechanicPrice}` === key)) {
+      continue;
+    }
+    deduped.push({
+      description: kp.description,
+      quantity: 1,
+      mechanicPrice: kp.mechanicPrice,
+      oemPartNumber: null,
+    });
   }
 
   const partsSum = deduped.reduce((s, p) => s + p.mechanicPrice, 0);

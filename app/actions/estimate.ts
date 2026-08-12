@@ -10,6 +10,7 @@ import { extractTextFromFile, getImageForAi } from "@/lib/ai/extract-text";
 import { hasAiConfigured, parseEstimate } from "@/lib/ai/parse-estimate";
 import { parseEstimateHeuristically, extractVehicleFromText } from "@/lib/ai/heuristic-parser";
 import type { ParsedEstimate } from "@/lib/ai/schema";
+import { scanEstimateKeywords } from "@/lib/ai/keyword-scanner";
 import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
 import { decodeVin, extractAndDecodeVin, extractVinFromText } from "@/lib/vin";
@@ -36,6 +37,16 @@ function mergeVehicleFromText(
   let model = fromText.model ?? parsed.vehicle.model;
   let engine = fromText.engine ?? parsed.vehicle.engine;
 
+  const kw = scanEstimateKeywords(text).vehicle;
+  if (kw.make === "Jeep" && kw.model === "Grand Cherokee") {
+    make = "Jeep";
+    model = "Grand Cherokee";
+  } else {
+    if (!make && kw.make) make = kw.make;
+    if (!model && kw.model) model = kw.model;
+  }
+  if (!year && kw.year) year = kw.year;
+
   // Never keep logo-OCR iX when the estimate clearly has a series model
   if (aiModel === "ix" && textModel && textModel !== "ix") {
     model = fromText.model;
@@ -48,10 +59,24 @@ function mergeVehicleFromText(
     make = make ?? "BMW";
   }
 
+  // Merge keyword-found parts the AI/heuristic may have missed
+  const kwParts = scanEstimateKeywords(text).parts;
+  const existing = new Set(
+    parsed.parts.map((p) => `${p.description.toLowerCase()}|${p.mechanicPrice}`)
+  );
+  const extra = kwParts
+    .filter((p) => !existing.has(`${p.description.toLowerCase()}|${p.mechanicPrice}`))
+    .map((p) => ({
+      description: p.description,
+      quantity: 1,
+      mechanicPrice: p.mechanicPrice,
+      oemPartNumber: null as string | null,
+    }));
+
   return {
     ...parsed,
     vehicle: { year, make, model, engine },
-    parts: parsed.parts.filter((p) => !isLaborJunkLine(p.description)),
+    parts: [...parsed.parts.filter((p) => !isLaborJunkLine(p.description)), ...extra],
   };
 }
 
@@ -315,7 +340,12 @@ export async function confirmEstimateVehicle(
 
   const year = Number(input.year);
   const make = input.make.trim();
-  const model = input.model.trim().replace(/\s+/g, " ");
+  // OCR / form sometimes appends "Engine" from a column header
+  const model = input.model
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/\s+Engine$/i, "")
+    .trim();
   if (!Number.isFinite(year) || year < 1990 || year > new Date().getFullYear() + 1) {
     return { error: "Enter a valid model year." };
   }

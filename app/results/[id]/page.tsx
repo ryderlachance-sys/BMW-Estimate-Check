@@ -147,7 +147,90 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           i.description
         )
       );
+    const unmatchedItems = estimate.items.filter(
+      (i) =>
+        !/job\s*t[ui]me|without\s+allowance|fuel\s+conditioning|998729|fr[uil]\b/i.test(
+          i.description
+        )
+    );
     const catalogHref = `/catalog?model=${encodeURIComponent(estimate.vehicle.model)}&year=${estimate.vehicle.year}`;
+
+    // Parts were found but nothing in our catalog matched — still show shop
+    // prices + affiliate search so the user can buy (and we can earn).
+    if (!laborOnly && unmatchedItems.length > 0) {
+      const shopParts = round2(
+        unmatchedItems.reduce((s, i) => s + i.mechanicPrice, 0)
+      );
+      return (
+        <div className="mx-auto max-w-xl px-4 py-10 sm:px-6 sm:py-14">
+          <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+            <Car className="size-3.5" />
+            {carLabel}
+            {vinHint}
+          </p>
+          <div className="mt-6 rounded-3xl bg-primary px-6 py-8 text-center text-primary-foreground">
+            <p className="text-sm font-medium uppercase tracking-wide opacity-90">
+              Shop parts total
+            </p>
+            <p className="mt-1 text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl">
+              {formatCurrency(shopParts)}
+            </p>
+            <p className="mt-3 text-sm opacity-90">
+              We read these lines from your estimate — buy them cheaper online below.
+            </p>
+          </div>
+          <ul className="mt-8 space-y-4">
+            {unmatchedItems.map((item) => {
+              const links = buildAffiliateLinks({
+                brand: "",
+                name: item.description,
+                oemPartNumber: item.oemPartNumber,
+                year: estimate.vehicle.year,
+                make: estimate.vehicle.make,
+                model: estimate.vehicle.model,
+                engine: estimate.vehicle.engine,
+              });
+              return (
+                <li
+                  key={item.id}
+                  className="rounded-2xl border bg-card p-4 text-left shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold leading-snug">{item.description}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Shop charged {formatCurrency(item.mechanicPrice)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <AffiliateBuyButtons
+                      links={links}
+                      compact
+                      primaryId="rockauto"
+                      fitment={{
+                        year: estimate.vehicle.year,
+                        make: estimate.vehicle.make,
+                        model: estimate.vehicle.model,
+                        vin: estimate.vehicle.vin,
+                        partName: item.description,
+                      }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <RetryParseButton estimateId={estimate.id} />
+            <Link href="/upload">
+              <Button variant="outline">Upload again</Button>
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
         <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">

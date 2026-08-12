@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2, Loader2, Search, X } from "lucide-react";
 import { createEstimate, type CreateEstimateState } from "@/app/actions/estimate";
 import { EstimateDropzone, type UploadedFile } from "@/components/estimate-dropzone";
+import { KeywordScanTable } from "@/components/keyword-scan-table";
 import { Button } from "@/components/ui/button";
 
 export function UploadForm() {
@@ -80,6 +81,10 @@ export function UploadForm() {
       <input type="hidden" name="fileUrl" value={file?.url ?? ""} />
       <input type="hidden" name="fileType" value={file?.type ?? ""} />
       <input type="hidden" name="extractedText" value={file?.extractedText ?? ""} />
+
+      {file?.extractedText && file.extractedText.trim().length >= 8 && (
+        <KeywordScanTable text={file.extractedText} />
+      )}
 
       {state?.error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-destructive">
