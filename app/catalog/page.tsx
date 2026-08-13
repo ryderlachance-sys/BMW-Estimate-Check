@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { Cog } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Cog } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { CatalogFilters } from "@/components/catalog-controls";
 import { CatalogPartImage } from "@/components/catalog-part-image";
 import { AffiliateBuyButtons } from "@/components/affiliate-links";
@@ -61,16 +63,15 @@ export default async function CatalogPage({
   ]);
 
   const makes = [...new Set(allParts.flatMap((p) => p.compatibleMakes))].sort();
+  const makeParts = allParts.filter((p) => !make || p.compatibleMakes.includes(make));
   const models = [
     ...new Set(
-      allParts
-        .filter((p) => !make || p.compatibleMakes.includes(make))
-        .flatMap((p) => p.compatibleModels)
+      makeParts.flatMap((p) => p.compatibleModels)
     ),
   ].sort();
-  const brands = [...new Set(allParts.map((p) => p.brand))].sort();
-  const categories = [...new Set(allParts.map((p) => p.category))].sort();
-  const years = [...new Set(allParts.flatMap((p) => p.compatibleYears))].sort((a, b) => b - a);
+  const brands = [...new Set(makeParts.map((p) => p.brand))].sort();
+  const categories = [...new Set(makeParts.map((p) => p.category))].sort();
+  const years = [...new Set(makeParts.flatMap((p) => p.compatibleYears))].sort((a, b) => b - a);
 
   const productsJsonLd = {
     "@context": "https://schema.org",
@@ -121,6 +122,20 @@ export default async function CatalogPage({
 
       <div className="mt-8">
         <CatalogFilters makes={makes} models={models} brands={brands} categories={categories} years={years} />
+      </div>
+
+      <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-bold">Don&apos;t see your exact car or repair?</p>
+          <p className="text-sm text-muted-foreground">
+            This is a growing reference catalog. Upload the estimate to identify the parts for any make.
+          </p>
+        </div>
+        <Link href="/upload" className="shrink-0">
+          <Button className="w-full gap-1.5 sm:w-auto">
+            Check my estimate <ArrowRight className="size-4" />
+          </Button>
+        </Link>
       </div>
 
       {parts.length === 0 ? (
