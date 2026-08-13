@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { UploadForm } from "@/components/upload-form";
+import { ManualPartsForm } from "@/components/manual-parts-form";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -24,6 +25,16 @@ export default function UploadPage() {
       <div className="mt-10">
         <UploadForm />
       </div>
+      <div className="my-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+        <span className="h-px flex-1 bg-border" /> No estimate? <span className="h-px flex-1 bg-border" />
+      </div>
+      <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+        <h2 className="text-xl font-extrabold">Tell us what parts you need</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Enter your vehicle and repair parts manually. A VIN or OEM number gives the safest match.
+        </p>
+        <ManualPartsForm />
+      </section>
     </div>
   );
 }

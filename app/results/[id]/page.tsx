@@ -136,6 +136,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
   const vinHint = estimate.vehicle.vin
     ? ` · VIN …${estimate.vehicle.vin.slice(-6)}`
     : "";
+  const manualSearch = estimate.originalFileUrl === "manual://parts";
 
   if (primaryLines.length === 0) {
     const laborOnly =
@@ -212,13 +213,15 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           </p>
           <div className="mt-6 rounded-3xl bg-primary px-6 py-8 text-center text-primary-foreground">
             <p className="text-sm font-medium uppercase tracking-wide opacity-90">
-              {verifiedOnline > 0 ? "Verified parts savings" : "Shop parts total"}
+              {manualSearch ? "Parts requested" : verifiedOnline > 0 ? "Verified parts savings" : "Shop parts total"}
             </p>
             <p className="mt-1 text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl">
-              {formatCurrency(verifiedOnline > 0 ? verifiedSavings : shopParts)}
+              {manualSearch ? unmatchedItems.length : formatCurrency(verifiedOnline > 0 ? verifiedSavings : shopParts)}
             </p>
             <p className="mt-3 text-sm opacity-90">
-              {verifiedOnline > 0
+              {manualSearch
+                ? "We’ll show exact verified listings where fitment data is available."
+                : verifiedOnline > 0
                 ? `Mechanic parts ${formatCurrency(verifiedShop)} · verified online ${formatCurrency(verifiedOnline)}`
                 : "We read these lines from your estimate. Exact retailer matches are being verified."}
             </p>
@@ -262,13 +265,13 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                     <p className="truncate text-sm font-semibold leading-snug">
                       {item.productTitle ?? item.description}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    {!manualSearch && <p className="mt-0.5 text-xs text-muted-foreground">
                       Shop charged {formatCurrency(item.mechanicPrice)}
-                    </p>
+                    </p>}
                     {item.retailerPrice && (
                       <p className="mt-1 text-sm font-extrabold text-primary">
                         {item.retailerName ?? "Online"} {formatCurrency(item.retailerPrice)}
-                        {savings !== null && (
+                        {!manualSearch && savings !== null && (
                           <span className="ml-2 text-xs font-semibold text-success">
                             Save {formatCurrency(savings)}
                           </span>
@@ -356,14 +359,15 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
 
       <div className="mt-6 rounded-3xl bg-primary px-6 py-8 text-center text-primary-foreground">
         <p className="text-sm font-medium uppercase tracking-wide opacity-90">
-          Estimated parts savings
+          {manualSearch ? "Estimated online parts total" : "Estimated parts savings"}
         </p>
         <p className="mt-1 text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl">
-          {formatCurrency(Math.max(0, totalSavings))}
+          {formatCurrency(manualSearch ? onlineParts : Math.max(0, totalSavings))}
         </p>
         <p className="mt-3 text-sm opacity-90">
-          Shop wants {formatCurrency(shopParts)} for these parts → catalog estimate about{" "}
-          {formatCurrency(onlineParts)}
+          {manualSearch
+            ? "Confirm current price and exact fitment with the retailer before buying."
+            : <>Shop wants {formatCurrency(shopParts)} for these parts → catalog estimate about {formatCurrency(onlineParts)}</>}
         </p>
       </div>
 
@@ -425,14 +429,14 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                           </p>
                           <p className="truncate text-sm font-bold leading-snug">{title}</p>
                           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                            <span className="text-xs tabular-nums text-muted-foreground line-through">
+                            {!manualSearch && <span className="text-xs tabular-nums text-muted-foreground line-through">
                               {formatCurrency(primary.mechanicPrice)}
-                            </span>
+                            </span>}
                             <span className="text-sm font-extrabold tabular-nums text-primary">
                               {hasVerifiedListing ? "Verified listing" : "Catalog estimate"}{" "}
                               {formatCurrency(primary.ourPrice)}
                             </span>
-                            {primary.savings > 0 && (
+                            {!manualSearch && primary.savings > 0 && (
                               <span className="text-[11px] font-semibold text-success">
                                 Est. save {formatCurrency(primary.savings)}
                               </span>

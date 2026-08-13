@@ -57,10 +57,10 @@ export function VerifiedPartsCheckout({ items }: { items: VerifiedCheckoutItem[]
               <div key={item.id} className="flex flex-col gap-2 rounded-xl bg-secondary/50 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">Shop charged {formatCurrency(item.mechanicPrice)}</p>
+                  {item.mechanicPrice > 0 ? <p className="text-xs text-muted-foreground">Shop charged {formatCurrency(item.mechanicPrice)}</p> : null}
                   <p className="text-sm font-extrabold text-primary">
                     {item.retailer} {formatCurrency(item.price)}{" "}
-                    <span className="text-xs text-success">Save {formatCurrency(Math.max(0, item.mechanicPrice - item.price))}</span>
+                    {item.mechanicPrice > 0 ? <span className="text-xs text-success">Save {formatCurrency(Math.max(0, item.mechanicPrice - item.price))}</span> : null}
                   </p>
                   {item.fitmentNote ? (
                     <p className="mt-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold leading-relaxed text-emerald-800">

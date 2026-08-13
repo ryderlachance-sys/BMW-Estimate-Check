@@ -130,6 +130,82 @@ const CreateEstimateSchema = z.object({
 
 export type CreateEstimateState = { error?: string } | null;
 
+const ManualPartsSchema = z.object({
+  year: z.coerce.number().int().min(1990).max(new Date().getFullYear() + 1),
+  make: z.string().trim().min(2),
+  model: z.string().trim().min(2),
+  engine: z.string().trim().optional(),
+  vin: z.string().trim().optional(),
+  parts: z.string().trim().min(3),
+});
+
+export async function createManualPartsSearch(formData: FormData): Promise<void> {
+  const user = await ensureUser();
+  const input = ManualPartsSchema.parse({
+    year: formData.get("year"),
+    make: formData.get("make"),
+    model: formData.get("model"),
+    engine: formData.get("engine"),
+    vin: formData.get("vin"),
+    parts: formData.get("parts"),
+  });
+  const vin = input.vin?.replace(/[^A-HJ-NPR-Z0-9]/gi, "").toUpperCase() || null;
+  if (vin && vin.length !== 17) throw new Error("VIN must be exactly 17 characters.");
+  const rows = input.parts.split(/\r?\n|,/).map((row) => row.trim()).filter(Boolean).slice(0, 12);
+  if (rows.length === 0) throw new Error("Enter at least one part.");
+
+  const estimate = await db.$transaction(async (tx) => {
+    const vehicle = await tx.vehicle.create({
+      data: {
+        userId: user.id,
+        year: input.year,
+        make: input.make,
+        model: input.model,
+        engine: input.engine || null,
+        vin,
+      },
+    });
+    const created = await tx.estimate.create({
+      data: {
+        userId: user.id,
+        vehicleId: vehicle.id,
+        originalFileUrl: "manual://parts",
+        originalFileType: "text/manual",
+        extractedText: `${input.year} ${input.make} ${input.model}\n${rows.join("\n")}`,
+        status: "PARSED",
+      },
+    });
+    await tx.estimateItem.createMany({
+      data: rows.map((row) => {
+        const [description, suppliedOem] = row.split("|").map((value) => value.trim());
+        const listing = findCuratedListing({
+          year: input.year,
+          make: input.make,
+          model: input.model,
+          description: description || row,
+        });
+        return {
+          estimateId: created.id,
+          description: description || row,
+          quantity: 1,
+          mechanicPrice: 0,
+          oemPartNumber: normalizeOemNumber(suppliedOem || null),
+          amazonAsin: listing?.amazonAsin ?? null,
+          retailerName: listing?.retailerName ?? null,
+          retailerPrice: listing?.retailerPrice ?? null,
+          productTitle: listing?.productTitle ?? null,
+          retailerUrl: listing?.retailerUrl ?? null,
+          retailerCheckedAt: listing ? new Date() : null,
+          fitmentNote: listing?.fitmentNote ?? null,
+        };
+      }),
+    });
+    return created;
+  });
+  await buildComparisons(estimate.id);
+  redirect(`/results/${estimate.id}`);
+}
+
 export async function createEstimate(
   _prev: CreateEstimateState,
   formData: FormData
