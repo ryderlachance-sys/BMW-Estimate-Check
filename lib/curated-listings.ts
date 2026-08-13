@@ -36,8 +36,8 @@ const listings: Array<{
       retailerName: "Amazon",
       retailerPrice: 92.95,
       amazonAsin: "B09HZ459FG",
-      productTitle: "TRQ Front Vented Brake Rotor Set",
-      fitmentNote: "Confirmed year and model fit",
+      productTitle: "TRQ BRA72719 Front Vented Brake Rotor Set",
+      fitmentNote: "Fits 2019–2022 Lexus ES 350 · Amazon must show Style BRA72719 — do not select another variation",
     },
   },
   {

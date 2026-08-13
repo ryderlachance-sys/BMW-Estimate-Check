@@ -62,7 +62,11 @@ export function VerifiedPartsCheckout({ items }: { items: VerifiedCheckoutItem[]
                     {item.retailer} {formatCurrency(item.price)}{" "}
                     <span className="text-xs text-success">Save {formatCurrency(Math.max(0, item.mechanicPrice - item.price))}</span>
                   </p>
-                  {item.fitmentNote ? <p className="text-[11px] font-semibold text-emerald-700">✓ {item.fitmentNote}</p> : null}
+                  {item.fitmentNote ? (
+                    <p className="mt-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold leading-relaxed text-emerald-800">
+                      ✓ {item.fitmentNote}
+                    </p>
+                  ) : null}
                   {item.checkedAt ? <p className="text-[10px] text-muted-foreground">Price checked {item.checkedAt}</p> : null}
                 </div>
                 <a href={item.url} target="_blank" rel="noopener noreferrer sponsored" onClick={() => {
