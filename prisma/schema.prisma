@@ -144,6 +144,9 @@ model EstimateItem {
   oemPartNumber String?
   amazonAsin    String?
   ebayItemId    String?
+  retailerName  String?
+  retailerPrice Float?
+  productTitle  String?
 
   estimate    Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   comparisons Comparison[]

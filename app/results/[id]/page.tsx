@@ -191,7 +191,11 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 amazonAsin: item.amazonAsin,
                 ebayItemId: item.ebayItemId,
               };
-              const bundle = buildProductBuyBundle(query, item.mechanicPrice * 0.55);
+              const listingPrice = item.retailerPrice ?? item.mechanicPrice * 0.55;
+              const bundle = buildProductBuyBundle(query, listingPrice);
+              const savings = item.retailerPrice
+                ? Math.max(0, item.mechanicPrice - item.retailerPrice)
+                : null;
               return (
                 <li
                   key={item.id}
@@ -199,11 +203,21 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold leading-snug">
-                      {item.description}
+                      {item.productTitle ?? item.description}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       Shop charged {formatCurrency(item.mechanicPrice)}
                     </p>
+                    {item.retailerPrice && (
+                      <p className="mt-1 text-sm font-extrabold text-primary">
+                        Amazon {formatCurrency(item.retailerPrice)}
+                        {savings !== null && (
+                          <span className="ml-2 text-xs font-semibold text-success">
+                            Save {formatCurrency(savings)}
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
                   <PartBuyAction
                     bundle={bundle}
@@ -213,7 +227,11 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                       make: estimate.vehicle.make,
                       model: estimate.vehicle.model,
                       vin: estimate.vehicle.vin,
-                      partName: item.description,
+                      partName: item.productTitle ?? item.description,
+                      savingsPercent:
+                        savings !== null && item.mechanicPrice > 0
+                          ? (savings / item.mechanicPrice) * 100
+                          : undefined,
                     }}
                   />
                 </li>

@@ -13,6 +13,7 @@ import type { ParsedEstimate } from "@/lib/ai/schema";
 import { scanEstimateKeywords } from "@/lib/ai/keyword-scanner";
 import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
+import { findCuratedListing } from "@/lib/curated-listings";
 import {
   decodeVin,
   extractAndDecodeVin,
@@ -345,15 +346,26 @@ export async function processEstimate(estimateId: string): Promise<void> {
     await db.estimateItem.deleteMany({ where: { estimateId } });
     if (result.parts.length > 0) {
       await db.estimateItem.createMany({
-        data: result.parts.map((p) => ({
-          estimateId,
-          description: p.description,
-          quantity: Math.max(1, p.quantity),
-          mechanicPrice: p.mechanicPrice,
-          oemPartNumber: normalizeOemNumber(p.oemPartNumber),
-          amazonAsin: p.amazonAsin ?? null,
-          ebayItemId: p.ebayItemId ?? null,
-        })),
+        data: result.parts.map((p) => {
+          const listing = findCuratedListing({
+            year: detectedYear,
+            make: detectedMake,
+            model: detectedModel,
+            description: p.description,
+          });
+          return {
+            estimateId,
+            description: p.description,
+            quantity: Math.max(1, p.quantity),
+            mechanicPrice: p.mechanicPrice,
+            oemPartNumber: normalizeOemNumber(p.oemPartNumber),
+            amazonAsin: listing?.amazonAsin ?? p.amazonAsin ?? null,
+            ebayItemId: p.ebayItemId ?? null,
+            retailerName: listing?.retailerName ?? null,
+            retailerPrice: listing?.retailerPrice ?? null,
+            productTitle: listing?.productTitle ?? null,
+          };
+        }),
       });
     }
 
