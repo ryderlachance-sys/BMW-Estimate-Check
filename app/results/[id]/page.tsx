@@ -195,6 +195,13 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
               price: item.retailerPrice,
               url: link.url,
               vehicle: carLabel,
+              mechanicPrice: item.mechanicPrice,
+              fitmentNote: item.fitmentNote,
+              checkedAt: item.retailerCheckedAt?.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
             }]
           : [];
       });
@@ -219,8 +226,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             </p>
           </div>
           <VerifiedPartsCheckout items={checkoutItems} />
-          <ul className="mt-6 space-y-2.5">
-            {unmatchedItems.map((item) => {
+          {unmatchedItems.some((item) => !item.retailerPrice) && <ul className="mt-6 space-y-2.5">
+            {unmatchedItems.filter((item) => !item.retailerPrice).map((item) => {
               const query = {
                 brand: "",
                 name: item.description,
@@ -304,7 +311,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 </li>
               );
             })}
-          </ul>
+          </ul>}
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <RetryParseButton estimateId={estimate.id} />
             <Link href="/upload">
