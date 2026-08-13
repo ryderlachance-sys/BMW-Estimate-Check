@@ -147,6 +147,7 @@ model EstimateItem {
   retailerName  String?
   retailerPrice Float?
   productTitle  String?
+  retailerUrl   String?
 
   estimate    Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   comparisons Comparison[]

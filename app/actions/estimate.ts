@@ -364,6 +364,7 @@ export async function processEstimate(estimateId: string): Promise<void> {
             retailerName: listing?.retailerName ?? null,
             retailerPrice: listing?.retailerPrice ?? null,
             productTitle: listing?.productTitle ?? null,
+            retailerUrl: listing?.retailerUrl ?? null,
           };
         }),
       });
