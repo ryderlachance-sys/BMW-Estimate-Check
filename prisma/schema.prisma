@@ -220,6 +220,7 @@ model Order {
   id              String              @id @default(cuid())
   userId          String
   stripeSessionId String?             @unique
+  customerEmail   String?
   subtotal        Float
   shipping        Float               @default(0)
   tax             Float               @default(0)

@@ -7,6 +7,7 @@ import { ensureUser } from "@/lib/auth";
 import { formatCurrency, round2 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
+  AddAllToCartButton,
   ProcessingPoller,
   RetryParseButton,
 } from "@/components/results-actions";
@@ -269,14 +270,14 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           {formatCurrency(Math.max(0, totalSavings))}
         </p>
         <p className="mt-3 text-sm opacity-90">
-          Shop wants {formatCurrency(shopParts)} for these parts → OEM/premium online about{" "}
+          Shop wants {formatCurrency(shopParts)} for these parts → catalog reference about{" "}
           {formatCurrency(onlineParts)}
         </p>
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        OEM/premium matches quality; budget is cheaper aftermarket when available. Always
-        verify fitment on the retailer before buying.
+        These are catalog reference prices, not live retailer quotes. Confirm the current
+        price and exact fitment on the retailer before buying.
       </p>
 
       <ul className="mt-6 space-y-2.5">
@@ -382,6 +383,18 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           );
         })}
       </ul>
+
+      <div className="mt-7">
+        <AddAllToCartButton
+          estimateId={estimate.id}
+          count={primaryLines.length}
+          variant="default"
+          className="w-full"
+        />
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Uses one OEM/premium recommendation per repair line so the checkout total matches this page.
+        </p>
+      </div>
 
       <div className="mt-10 text-center">
         <Link

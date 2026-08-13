@@ -5,7 +5,7 @@ import { faqItems } from "@/lib/faq";
 export const metadata: Metadata = {
   title: "Stop Overpaying for Car Repairs | Engine Genie",
   description:
-    "Upload any mechanic estimate and compare it against real part prices. See your savings instantly and buy parts online.",
+    "Upload any mechanic estimate and compare it against catalog reference prices before checking current retailer offers.",
   alternates: { canonical: "/" },
 };
 

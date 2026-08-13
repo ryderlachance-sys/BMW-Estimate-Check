@@ -36,11 +36,13 @@ export function CheckoutForm({
   savedMechanics,
   deliveryLabel,
   stripeEnabled,
+  orderingEnabled,
 }: {
   savedMechanics: SavedMechanic[];
   deliveryLabel: string;
   /** When true, submit sends the customer to Stripe to enter their card. */
   stripeEnabled: boolean;
+  orderingEnabled: boolean;
 }) {
   const [state, formAction, pending] = useActionState<PlaceOrderState, FormData>(
     placeOrder,
@@ -62,6 +64,17 @@ export function CheckoutForm({
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="destination" value={destination} />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="customerName">Your name</Label>
+          <Input id="customerName" name="customerName" required autoComplete="name" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email for receipts and tracking</Label>
+          <Input id="email" name="email" type="email" required autoComplete="email" />
+        </div>
+      </div>
 
       <div>
         <p className="text-sm font-semibold">Where should we ship the parts?</p>
@@ -334,7 +347,7 @@ export function CheckoutForm({
         </div>
       )}
 
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="w-full" disabled={pending || !orderingEnabled}>
         {pending ? <Loader2 className="size-5 animate-spin" /> : <Package className="size-4" />}
         {pending
           ? stripeEnabled
@@ -349,7 +362,9 @@ export function CheckoutForm({
               : "Place order"}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        {stripeEnabled
+        {!orderingEnabled
+          ? "Ordering opens after the supplier connection passes a test shipment. No payment can be taken yet."
+          : stripeEnabled
           ? "One payment covers every part in your cart. You'll enter your card on Stripe's secure page."
           : "Demo mode: no Stripe keys yet, so no card is charged. Add keys from dashboard.stripe.com to take real payments."}
       </p>

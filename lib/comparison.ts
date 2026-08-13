@@ -129,7 +129,11 @@ export function similarityScore(itemDescription: string, part: CatalogPart): num
   let score = 0.75 * nameScore + 0.25 * allScore;
 
   // Don't match "oil filter housing" to a gasket, or vice versa.
-  const TYPE_WORDS = ["gasket", "seal", "sensor", "kit", "oring", "ring"];
+  const TYPE_WORDS = [
+    "gasket", "seal", "sensor", "kit", "oring", "ring", "pump", "thermostat",
+    "alternator", "starter", "belt", "plug", "coil", "pad", "rotor", "strut",
+    "shock", "filter", "compressor", "radiator", "caliper",
+  ];
   for (const tw of TYPE_WORDS) {
     const inItem = itemTokens.has(tw);
     const inName = nameTokens.has(tw);

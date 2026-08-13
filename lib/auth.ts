@@ -1,26 +1,34 @@
 import { db } from "@/lib/db";
 import type { User } from "@prisma/client";
-
-/**
- * Local single-user mode: no external auth provider, no accounts, no sign-in.
- * Every visitor is the owner of this local install, who is also the admin.
- */
-const OWNER_EMAIL = "demo@bmwestimatecheck.com";
+import { cookies } from "next/headers";
+import {
+  ADMIN_COOKIE,
+  CUSTOMER_COOKIE,
+  isValidAdminToken,
+  readCustomerToken,
+} from "@/lib/session";
 
 export async function ensureUser(): Promise<User> {
+  const store = await cookies();
+  const guestId = await readCustomerToken(store.get(CUSTOMER_COOKIE)?.value);
+  if (!guestId) {
+    throw new Error("Your secure session is missing. Refresh the page and try again.");
+  }
+  const email = `guest-${guestId}@users.enginegenie.local`;
   return db.user.upsert({
-    where: { email: OWNER_EMAIL },
-    update: { isAdmin: true },
+    where: { clerkId: `guest:${guestId}` },
+    update: {},
     create: {
-      clerkId: "local-owner",
-      email: OWNER_EMAIL,
-      name: "Demo Driver",
-      isAdmin: true,
+      clerkId: `guest:${guestId}`,
+      email,
+      name: "Guest Driver",
+      isAdmin: false,
     },
   });
 }
 
-/** In local mode the owner is always the admin. */
 export async function getAdminUser(): Promise<User | null> {
+  const store = await cookies();
+  if (!(await isValidAdminToken(store.get(ADMIN_COOKIE)?.value))) return null;
   return ensureUser();
 }

@@ -97,9 +97,9 @@ export default async function CatalogPage({
       />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">BMW Parts Catalog</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">Car Parts Catalog</h1>
           <p className="mt-2 text-muted-foreground">
-            Genuine BMW and OE-supplier parts with verified fitment.
+            Genuine and OE-supplier parts filtered by listed vehicle compatibility.
           </p>
         </div>
         <p className="text-sm text-muted-foreground">

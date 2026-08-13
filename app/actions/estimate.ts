@@ -48,7 +48,13 @@ function mergeVehicleFromText(
     model = "Grand Cherokee";
   } else {
     if (!make && kw.make) make = kw.make;
-    if (!model && kw.model) model = kw.model;
+    if (
+      kw.model &&
+      (!model ||
+        (kw.model.toLowerCase().startsWith(model.toLowerCase()) && kw.model.length > model.length))
+    ) {
+      model = kw.model;
+    }
   }
   if (!year && kw.year) year = kw.year;
 
@@ -66,11 +72,17 @@ function mergeVehicleFromText(
 
   // Merge keyword-found parts the AI/heuristic may have missed
   const kwParts = scanEstimateKeywords(text).parts;
-  const existing = new Set(
-    parsed.parts.map((p) => `${p.description.toLowerCase()}|${p.mechanicPrice}`)
-  );
+  const canonicalPart = (description: string) =>
+    description
+      .toLowerCase()
+      .replace(/\$?\d[\d,.]*/g, " ")
+      .replace(/\b(parts?|sets?|kits?|assembly|assy|qty|quantity|each|ea)\b/g, " ")
+      .replace(/\b(pads|rotors|belts|plugs|coils|gaskets|struts)\b/g, (word) => word.slice(0, -1))
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const existing = new Set(parsed.parts.map((p) => canonicalPart(p.description)));
   const extra = kwParts
-    .filter((p) => !existing.has(`${p.description.toLowerCase()}|${p.mechanicPrice}`))
+    .filter((p) => !existing.has(canonicalPart(p.description)))
     .map((p) => ({
       description: p.description,
       quantity: 1,
