@@ -20,6 +20,15 @@ export const MAKES = [
   "GMC",
   "Dodge",
   "Tesla",
+  "Acura",
+  "Buick",
+  "Cadillac",
+  "Chrysler",
+  "Infiniti",
+  "Lincoln",
+  "Volvo",
+  "Porsche",
+  "Mini",
   "Other",
 ] as const;
 
@@ -64,6 +73,15 @@ export const MODELS_BY_MAKE: Record<string, string[]> = {
   GMC: ["Sierra", "Yukon", "Terrain", "Acadia", "Canyon"],
   Dodge: ["Charger", "Challenger", "Durango", "Hornet"],
   Tesla: ["Model 3", "Model Y", "Model S", "Model X"],
+  Acura: ["Integra", "TLX", "RDX", "MDX"],
+  Buick: ["Encore", "Envision", "Enclave", "Regal"],
+  Cadillac: ["CT4", "CT5", "XT4", "XT5", "XT6", "Escalade"],
+  Chrysler: ["300", "Pacifica", "Voyager"],
+  Infiniti: ["Q50", "Q60", "QX50", "QX60", "QX80"],
+  Lincoln: ["Corsair", "Nautilus", "Aviator", "Navigator"],
+  Volvo: ["S60", "S90", "XC40", "XC60", "XC90"],
+  Porsche: ["718", "911", "Cayenne", "Macan", "Panamera", "Taycan"],
+  Mini: ["Cooper", "Clubman", "Countryman"],
   Other: [],
 };
 

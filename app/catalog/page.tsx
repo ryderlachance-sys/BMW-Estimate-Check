@@ -10,6 +10,7 @@ import { CatalogFilters } from "@/components/catalog-controls";
 import { CatalogPartImage } from "@/components/catalog-part-image";
 import { AffiliateBuyButtons } from "@/components/affiliate-links";
 import { buildAffiliateLinks } from "@/lib/affiliates";
+import { MAKES, MODELS_BY_MAKE } from "@/lib/vehicles";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -62,16 +63,19 @@ export default async function CatalogPage({
     }),
   ]);
 
-  const makes = [...new Set(allParts.flatMap((p) => p.compatibleMakes))].sort();
+  const makes = MAKES.filter((item) => item !== "Other");
   const makeParts = allParts.filter((p) => !make || p.compatibleMakes.includes(make));
+  const catalogModels = [...new Set(makeParts.flatMap((p) => p.compatibleModels))];
   const models = [
-    ...new Set(
-      makeParts.flatMap((p) => p.compatibleModels)
-    ),
+    ...new Set(make ? [...(MODELS_BY_MAKE[make] ?? []), ...catalogModels] : catalogModels),
   ].sort();
   const brands = [...new Set(makeParts.map((p) => p.brand))].sort();
   const categories = [...new Set(makeParts.map((p) => p.category))].sort();
-  const years = [...new Set(makeParts.flatMap((p) => p.compatibleYears))].sort((a, b) => b - a);
+  const catalogYears = [...new Set(makeParts.flatMap((p) => p.compatibleYears))];
+  const years = (catalogYears.length > 0
+    ? catalogYears
+    : Array.from({ length: new Date().getFullYear() - 1989 }, (_, index) => 1990 + index)
+  ).sort((a, b) => b - a);
 
   const productsJsonLd = {
     "@context": "https://schema.org",
@@ -141,8 +145,15 @@ export default async function CatalogPage({
       {parts.length === 0 ? (
         <div className="mt-20 text-center text-muted-foreground">
           <Cog className="mx-auto size-12 opacity-40" />
-          <p className="mt-4 font-medium">No parts match those filters.</p>
-          <p className="text-sm">Try clearing a filter or searching by OEM part number.</p>
+          <p className="mt-4 font-medium">
+            {make ? `No verified ${make} catalog listings yet.` : "No parts match those filters."}
+          </p>
+          <p className="text-sm">
+            Upload the estimate and we&apos;ll identify the exact repair parts instead of guessing.
+          </p>
+          <Link href="/upload" className="mt-5 inline-block">
+            <Button>Upload my estimate</Button>
+          </Link>
         </div>
       ) : (
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
