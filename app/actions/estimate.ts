@@ -80,9 +80,21 @@ function mergeVehicleFromText(
       .replace(/\b(pads|rotors|belts|plugs|coils|gaskets|struts)\b/g, (word) => word.slice(0, -1))
       .replace(/[^a-z0-9]+/g, " ")
       .trim();
-  const existing = new Set(parsed.parts.map((p) => canonicalPart(p.description)));
+  const existing = parsed.parts.map((p) => ({
+    name: canonicalPart(p.description),
+    price: p.mechanicPrice,
+  }));
   const extra = kwParts
-    .filter((p) => !existing.has(canonicalPart(p.description)))
+    .filter((p) => {
+      const candidate = canonicalPart(p.description);
+      return !existing.some(
+        (current) =>
+          Math.abs(current.price - p.mechanicPrice) < 0.01 &&
+          (current.name === candidate ||
+            current.name.includes(candidate) ||
+            candidate.includes(current.name))
+      );
+    })
     .map((p) => ({
       description: p.description,
       quantity: 1,
