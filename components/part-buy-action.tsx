@@ -1,19 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 import {
   FitmentInterstitial,
   type FitmentContext,
 } from "@/components/affiliate-links";
 import type { ProductBuyBundle, PricedAffiliateLink } from "@/lib/affiliates";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 /**
- * One clear recommendation. A direct product CTA is shown only when the
- * catalog contains a verified ASIN or eBay item ID. Search fallbacks are
- * labeled honestly so a customer never expects a single listing and lands on
- * a results grid by surprise.
+ * Amazon + eBay product-style CTAs (primary).
+ * RockAuto as a quiet wholesaler text link (secondary).
+ * Never use a single RockAuto primary or "Compare other stores" control.
  */
 export function PartBuyAction({
   bundle,
@@ -24,93 +23,26 @@ export function PartBuyAction({
   bundle: ProductBuyBundle;
   fitment?: FitmentContext;
   className?: string;
+  /** Optional verified listing — merges into Amazon/eBay when it matches that store. */
   directListing?: PricedAffiliateLink | null;
 }) {
   const [pending, setPending] = useState<PricedAffiliateLink | null>(null);
-  const { amazon, ebay, rockAuto } = bundle;
-
-  const recommended = useMemo(
-    () => directListing ?? [amazon, ebay].find((link) => link.isProductPage) ?? null,
-    [amazon, ebay, directListing]
-  );
-  const alternatives = [amazon, ebay, rockAuto].filter(
-    (link) => link.isProductPage && link.url !== recommended?.url
-  );
-
-  if (!recommended) {
-    const searchLink = amazon;
-    const searchAlternatives = [ebay, rockAuto].filter(
-      (link) => link.url !== searchLink.url
-    );
-
-    return (
-      <div className={cn("w-full sm:w-[15rem] sm:shrink-0", className)}>
-        <button
-          type="button"
-          onClick={() => setPending(searchLink)}
-          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 active:scale-[0.99]"
-        >
-          Find this part on Amazon
-          <ExternalLink className="size-3.5 opacity-80" />
-        </button>
-        <details className="mt-1.5 text-center">
-          <summary className="cursor-pointer list-none text-[11px] font-semibold text-muted-foreground hover:text-foreground">
-            Compare other stores
-          </summary>
-          <div className="mt-2 grid gap-1.5 rounded-xl border bg-background p-2 text-left">
-            {searchAlternatives.map((link) => (
-              <button
-                key={link.id}
-                type="button"
-                onClick={() => setPending(link)}
-                className="flex min-h-9 items-center justify-between rounded-lg px-2.5 text-xs font-semibold hover:bg-secondary"
-              >
-                <span>Search {link.label}</span>
-                <ExternalLink className="size-3.5 text-muted-foreground" />
-              </button>
-            ))}
-          </div>
-        </details>
-
-        {pending && (
-          <FitmentInterstitial
-            link={pending}
-            fitment={fitment}
-            onClose={() => setPending(null)}
-          />
-        )}
-      </div>
-    );
-  }
+  const amazon = mergeDirectListing(bundle.amazon, directListing);
+  const ebay = mergeDirectListing(bundle.ebay, directListing);
+  const { rockAuto } = bundle;
 
   return (
-    <div className={cn("w-full sm:w-[15rem] sm:shrink-0", className)}>
+    <div className={cn("flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-[14rem]", className)}>
+      <PrimaryBuyButton link={amazon} onClick={() => setPending(amazon)} />
+      <PrimaryBuyButton link={ebay} onClick={() => setPending(ebay)} tone="secondary" />
+
       <button
         type="button"
-        onClick={() => setPending(recommended)}
-        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.99]"
+        onClick={() => setPending(rockAuto)}
+        className="mt-0.5 text-left text-[11px] leading-snug text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:text-right"
       >
-        {`Buy exact part on ${recommended.label}`}
-        <ExternalLink className="size-3.5 opacity-80" />
+        Alternative wholesaler deal on RockAuto ({formatCurrency(rockAuto.estimatedPrice)})
       </button>
-
-      {alternatives.length > 0 && (
-        <div className="mt-2 grid gap-1.5 rounded-xl border bg-background p-2">
-          {alternatives.map((link) => (
-            <button
-              key={link.id}
-              type="button"
-              onClick={() => setPending(link)}
-              className="flex min-h-9 items-center justify-between rounded-lg px-2.5 text-left text-xs font-semibold hover:bg-secondary"
-            >
-              <span>
-                View exact product on {link.label}
-              </span>
-              <ExternalLink className="size-3.5 text-muted-foreground" />
-            </button>
-          ))}
-        </div>
-      )}
 
       {pending && (
         <FitmentInterstitial
@@ -120,5 +52,51 @@ export function PartBuyAction({
         />
       )}
     </div>
+  );
+}
+
+function mergeDirectListing(
+  store: PricedAffiliateLink,
+  directListing?: PricedAffiliateLink | null
+): PricedAffiliateLink {
+  if (!directListing?.isProductPage) return store;
+  const label = directListing.label.toLowerCase();
+  const id = directListing.id.toLowerCase();
+  const matchesStore =
+    (store.id === "amazon" && (id.includes("amazon") || label.includes("amazon"))) ||
+    (store.id === "ebay" && (id.includes("ebay") || label.includes("ebay")));
+  if (!matchesStore) return store;
+  return {
+    ...store,
+    ...directListing,
+    id: store.id,
+    label: store.label,
+  };
+}
+
+function PrimaryBuyButton({
+  link,
+  onClick,
+  tone = "primary",
+}: {
+  link: PricedAffiliateLink;
+  onClick: () => void;
+  tone?: "primary" | "secondary";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-3",
+        "text-sm font-bold tracking-tight shadow-sm transition active:scale-[0.99]",
+        tone === "primary"
+          ? "bg-zinc-950 text-white hover:bg-zinc-800"
+          : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50"
+      )}
+    >
+      Buy on {link.label} ({formatCurrency(link.estimatedPrice)})
+      <ExternalLink className="size-3.5 opacity-80" />
+    </button>
   );
 }
