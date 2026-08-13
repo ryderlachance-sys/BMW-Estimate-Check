@@ -57,6 +57,8 @@ export default async function AdminInventoryPage() {
                     partId={part.id}
                     price={part.price}
                     stockStatus={part.stockStatus}
+                    amazonAsin={part.amazonAsin}
+                    ebayItemId={part.ebayItemId}
                   />
                 </TableCell>
               </TableRow>

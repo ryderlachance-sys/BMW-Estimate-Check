@@ -302,6 +302,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             ebayItemId: primary.catalogPart.ebayItemId ?? primary.estimateItem?.ebayItemId,
           };
           const bundle = buildProductBuyBundle(query, primary.ourPrice);
+          const hasVerifiedListing = bundle.amazon.isProductPage || bundle.ebay.isProductPage;
           const title = cleanPartDisplayName(
             primary.catalogPart.brand,
             primary.catalogPart.name,
@@ -338,7 +339,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                               {formatCurrency(primary.mechanicPrice)}
                             </span>
                             <span className="text-sm font-extrabold tabular-nums text-primary">
-                              Catalog estimate {formatCurrency(primary.ourPrice)}
+                              {hasVerifiedListing ? "Verified listing" : "Catalog estimate"}{" "}
+                              {formatCurrency(primary.ourPrice)}
                             </span>
                             {primary.savings > 0 && (
                               <span className="text-[11px] font-semibold text-success">

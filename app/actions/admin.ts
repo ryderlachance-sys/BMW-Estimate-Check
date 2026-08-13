@@ -112,21 +112,37 @@ export async function updateOrderShipping(
 
 export async function updateCatalogPart(
   partId: string,
-  data: { price?: number; stockStatus?: StockStatus }
+  data: {
+    price?: number;
+    stockStatus?: StockStatus;
+    amazonAsin?: string | null;
+    ebayItemId?: string | null;
+  }
 ): Promise<void> {
   await requireAdmin();
   if (data.price !== undefined && !(data.price > 0)) {
     throw new Error("Price must be greater than 0");
+  }
+  const amazonAsin = data.amazonAsin?.trim().toUpperCase() || null;
+  if (amazonAsin && !/^[A-Z0-9]{10}$/.test(amazonAsin)) {
+    throw new Error("Amazon ASIN must be exactly 10 letters or numbers");
+  }
+  const ebayItemId = data.ebayItemId?.trim() || null;
+  if (ebayItemId && !/^\d{9,15}$/.test(ebayItemId)) {
+    throw new Error("eBay item ID must contain 9 to 15 digits");
   }
   await db.catalogPart.update({
     where: { id: partId },
     data: {
       ...(data.price !== undefined ? { price: round2(data.price) } : {}),
       ...(data.stockStatus ? { stockStatus: data.stockStatus } : {}),
+      ...(data.amazonAsin !== undefined ? { amazonAsin } : {}),
+      ...(data.ebayItemId !== undefined ? { ebayItemId } : {}),
     },
   });
   revalidatePath("/admin/inventory");
   revalidatePath("/catalog");
+  revalidatePath("/results/[id]", "page");
 }
 
 /** Admin override of a part match: point a comparison at a different catalog part. */
