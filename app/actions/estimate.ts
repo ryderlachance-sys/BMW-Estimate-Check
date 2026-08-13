@@ -14,6 +14,7 @@ import { scanEstimateKeywords } from "@/lib/ai/keyword-scanner";
 import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
 import { findCuratedListing } from "@/lib/curated-listings";
+import { correctPartsOnlyPrices } from "@/lib/estimate-parts-price";
 import {
   decodeVin,
   extractAndDecodeVin,
@@ -279,6 +280,7 @@ export async function processEstimate(estimateId: string): Promise<void> {
     }
 
     result = mergeVehicleFromText(result, text ?? "");
+    result = correctPartsOnlyPrices(text, result);
 
     // Prefer VIN from GPT extract, then NHTSA decode from text.
     // Keep the VIN string even when the check digit is bad, but never let an
@@ -365,6 +367,8 @@ export async function processEstimate(estimateId: string): Promise<void> {
             retailerPrice: listing?.retailerPrice ?? null,
             productTitle: listing?.productTitle ?? null,
             retailerUrl: listing?.retailerUrl ?? null,
+            retailerCheckedAt: listing ? new Date() : null,
+            fitmentNote: listing?.fitmentNote ?? null,
           };
         }),
       });

@@ -4,6 +4,7 @@ export type CuratedListing = {
   amazonAsin?: string;
   retailerUrl?: string;
   productTitle: string;
+  fitmentNote: string;
 };
 
 const listings: Array<{
@@ -23,6 +24,7 @@ const listings: Array<{
       retailerPrice: 39.49,
       amazonAsin: "B0BHL39JV9",
       productTitle: "Bosch Blue Ceramic Front Brake Pad Set with Hardware",
+      fitmentNote: "Confirmed year, model, and engine-family fit",
     },
   },
   {
@@ -35,6 +37,7 @@ const listings: Array<{
       retailerPrice: 92.95,
       amazonAsin: "B09HZ459FG",
       productTitle: "TRQ Front Vented Brake Rotor Set",
+      fitmentNote: "Confirmed year and model fit",
     },
   },
   {
@@ -48,6 +51,7 @@ const listings: Array<{
       retailerUrl:
         "https://www.autopartsprime.com/lexus/alternator-assembly-with-regulator/oe-270600p440",
       productTitle: "Genuine Lexus Alternator Assembly 27060-0P440",
+      fitmentNote: "Exact OEM number match · 3.5L V6",
     },
   },
 ];

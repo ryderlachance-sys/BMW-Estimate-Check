@@ -138,6 +138,10 @@ export async function updateCatalogPart(
       ...(data.stockStatus ? { stockStatus: data.stockStatus } : {}),
       ...(data.amazonAsin !== undefined ? { amazonAsin } : {}),
       ...(data.ebayItemId !== undefined ? { ebayItemId } : {}),
+      ...((data.amazonAsin !== undefined || data.ebayItemId !== undefined) &&
+      (amazonAsin || ebayItemId)
+        ? { retailerCheckedAt: new Date() }
+        : {}),
     },
   });
   revalidatePath("/admin/inventory");

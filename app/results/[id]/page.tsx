@@ -160,6 +160,16 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
       const shopParts = round2(
         unmatchedItems.reduce((s, i) => s + i.mechanicPrice, 0)
       );
+      const verifiedOnline = round2(
+        unmatchedItems.reduce((sum, item) => sum + (item.retailerPrice ?? 0), 0)
+      );
+      const verifiedShop = round2(
+        unmatchedItems.reduce(
+          (sum, item) => sum + (item.retailerPrice ? item.mechanicPrice : 0),
+          0
+        )
+      );
+      const verifiedSavings = round2(Math.max(0, verifiedShop - verifiedOnline));
       return (
         <div className="mx-auto max-w-xl px-4 py-10 sm:px-6 sm:py-14">
           <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
@@ -169,13 +179,15 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           </p>
           <div className="mt-6 rounded-3xl bg-primary px-6 py-8 text-center text-primary-foreground">
             <p className="text-sm font-medium uppercase tracking-wide opacity-90">
-              Shop parts total
+              {verifiedOnline > 0 ? "Verified parts savings" : "Shop parts total"}
             </p>
             <p className="mt-1 text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl">
-              {formatCurrency(shopParts)}
+              {formatCurrency(verifiedOnline > 0 ? verifiedSavings : shopParts)}
             </p>
             <p className="mt-3 text-sm opacity-90">
-              We read these lines from your estimate — buy them cheaper online below.
+              {verifiedOnline > 0
+                ? `Mechanic parts ${formatCurrency(verifiedShop)} · verified online ${formatCurrency(verifiedOnline)}`
+                : "We read these lines from your estimate. Exact retailer matches are being verified."}
             </p>
           </div>
           <ul className="mt-6 space-y-2.5">
@@ -227,6 +239,20 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                             Save {formatCurrency(savings)}
                           </span>
                         )}
+                      </p>
+                    )}
+                    {item.fitmentNote && (
+                      <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+                        ✓ {item.fitmentNote}
+                      </p>
+                    )}
+                    {item.retailerCheckedAt && (
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        Price checked {item.retailerCheckedAt.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </p>
                     )}
                   </div>

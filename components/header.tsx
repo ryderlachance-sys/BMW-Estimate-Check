@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, ShieldCheck, Wrench, X } from "lucide-react";
+import { Menu, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
@@ -49,11 +49,6 @@ export function Header() {
           >
             {open ? <X className="size-5" /> : <Menu className="size-5" />}
           </Button>
-          <Link href="/admin" aria-label="Admin">
-            <Button variant="ghost" size="icon">
-              <ShieldCheck className="size-5" />
-            </Button>
-          </Link>
         </div>
       </div>
 
