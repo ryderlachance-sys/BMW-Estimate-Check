@@ -13,7 +13,7 @@ import type { ParsedEstimate } from "@/lib/ai/schema";
 import { scanEstimateKeywords } from "@/lib/ai/keyword-scanner";
 import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
-import { findCuratedListing } from "@/lib/curated-listings";
+import { findVerifiedRetailerListing } from "@/lib/retailers/find-listing";
 import { correctPartsOnlyPrices } from "@/lib/estimate-parts-price";
 import {
   decodeVin,
@@ -154,6 +154,23 @@ export async function createManualPartsSearch(formData: FormData): Promise<void>
   const rows = input.parts.split(/\r?\n|,/).map((row) => row.trim()).filter(Boolean).slice(0, 12);
   if (rows.length === 0) throw new Error("Enter at least one part.");
 
+  const preparedRows = await Promise.all(
+    rows.map(async (row) => {
+      const [description, suppliedOem] = row.split("|").map((value) => value.trim());
+      const cleanDescription = description || row;
+      const oemPartNumber = normalizeOemNumber(suppliedOem || null);
+      const listing = await findVerifiedRetailerListing({
+        year: input.year,
+        make: input.make,
+        model: input.model,
+        engine: input.engine || null,
+        description: cleanDescription,
+        oemPartNumber,
+      });
+      return { cleanDescription, oemPartNumber, listing };
+    })
+  );
+
   const estimate = await db.$transaction(async (tx) => {
     const vehicle = await tx.vehicle.create({
       data: {
@@ -176,21 +193,15 @@ export async function createManualPartsSearch(formData: FormData): Promise<void>
       },
     });
     await tx.estimateItem.createMany({
-      data: rows.map((row) => {
-        const [description, suppliedOem] = row.split("|").map((value) => value.trim());
-        const listing = findCuratedListing({
-          year: input.year,
-          make: input.make,
-          model: input.model,
-          description: description || row,
-        });
+      data: preparedRows.map(({ cleanDescription, oemPartNumber, listing }) => {
         return {
           estimateId: created.id,
-          description: description || row,
+          description: cleanDescription,
           quantity: 1,
           mechanicPrice: 0,
-          oemPartNumber: normalizeOemNumber(suppliedOem || null),
+          oemPartNumber,
           amazonAsin: listing?.amazonAsin ?? null,
+          ebayItemId: listing?.ebayItemId ?? null,
           retailerName: listing?.retailerName ?? null,
           retailerPrice: listing?.retailerPrice ?? null,
           productTitle: listing?.productTitle ?? null,
@@ -423,22 +434,30 @@ export async function processEstimate(estimateId: string): Promise<void> {
 
     await db.estimateItem.deleteMany({ where: { estimateId } });
     if (result.parts.length > 0) {
-      await db.estimateItem.createMany({
-        data: result.parts.map((p) => {
-          const listing = findCuratedListing({
+      const preparedParts = await Promise.all(
+        result.parts.map(async (part) => {
+          const oemPartNumber = normalizeOemNumber(part.oemPartNumber);
+          const listing = await findVerifiedRetailerListing({
             year: detectedYear,
             make: detectedMake,
             model: detectedModel,
-            description: p.description,
+            engine: detectedEngine,
+            description: part.description,
+            oemPartNumber,
           });
+          return { part, oemPartNumber, listing };
+        })
+      );
+      await db.estimateItem.createMany({
+        data: preparedParts.map(({ part: p, oemPartNumber, listing }) => {
           return {
             estimateId,
             description: p.description,
             quantity: Math.max(1, p.quantity),
             mechanicPrice: p.mechanicPrice,
-            oemPartNumber: normalizeOemNumber(p.oemPartNumber),
+            oemPartNumber,
             amazonAsin: listing?.amazonAsin ?? p.amazonAsin ?? null,
-            ebayItemId: p.ebayItemId ?? null,
+            ebayItemId: listing?.ebayItemId ?? p.ebayItemId ?? null,
             retailerName: listing?.retailerName ?? null,
             retailerPrice: listing?.retailerPrice ?? null,
             productTitle: listing?.productTitle ?? null,

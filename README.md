@@ -105,24 +105,27 @@ The success page also confirms payment via `session_id` if the webhook isn't set
 
 ## How you make money
 
-1. **Sell parts on this site** — customers pay you via Stripe; you fulfill
-   (or dropship) the order.
-2. **Affiliate commissions** (no inventory) — sign up free for
+**Affiliate commissions** (no inventory) — sign up for
    [Amazon Associates](https://affiliate-program.amazon.com/),
    [eBay Partner Network](https://partnernetwork.ebay.com/), and/or FCP Euro’s
    Impact program, put IDs in `.env`, and earn when shoppers buy through the
-   retailer buttons on results/catalog.
+   retailer buttons on results pages. Retailers collect payment and fulfill the
+   order.
+
+For automatic one-product links, live prices, and verified vehicle fitment,
+add an approved eBay Browse API Production App ID and Cert ID as
+`EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET`. Also set
+`NEXT_PUBLIC_EBAY_CAMPAIGN_ID` so returned product URLs earn affiliate
+commissions. Without retailer API credentials the app falls back to clearly
+labeled retailer searches rather than guessing an incompatible product.
 
 ## Try the flow
 
-1. Go to **Check an Estimate**, pick your BMW (e.g. 2013 335i, N55), and drop
-   in a shop estimate — PDF, photo, or screenshot.
-2. Review the parsed line items, matched parts, and savings.
-3. Click **Buy all cheaper parts online** (or a retailer button on each row).
-4. Optionally **Add all to cart** → checkout with a shipping address (demo
-   fulfillment path).
-5. See orders in `/dashboard`, manage them in `/admin/orders`, export CSV,
-   edit inventory pricing in `/admin/inventory`.
+1. Go to **Check an Estimate** and upload a PDF, photo, or screenshot. If there
+   is no estimate, enter the vehicle and requested parts manually.
+2. Review the detected vehicle and part lines.
+3. Open the exact verified retailer product when available, confirm fitment,
+   and purchase from the retailer.
 
 ## Project structure
 
