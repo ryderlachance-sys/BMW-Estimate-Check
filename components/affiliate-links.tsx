@@ -16,6 +16,21 @@ export type FitmentContext = {
   partName?: string | null;
 };
 
+function trackRetailerClick(link: AffiliateLink, fitment?: FitmentContext) {
+  const vehicle = [fitment?.year, fitment?.make, fitment?.model].filter(Boolean).join(" ");
+  void fetch("/api/outbound-click", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    keepalive: true,
+    body: JSON.stringify({
+      retailer: link.label,
+      url: link.url,
+      partName: fitment?.partName ?? undefined,
+      vehicle: vehicle || undefined,
+    }),
+  }).catch(() => undefined);
+}
+
 /** Optional per-part retailer links — opens a fitment warning before leaving. */
 export function AffiliateBuyButtons({
   links,
@@ -97,7 +112,10 @@ export function FitmentInterstitial({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              trackRetailerClick(link, fitment);
+              onClose();
+            }}
             className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
             aria-label="Close"
           >

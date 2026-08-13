@@ -66,7 +66,7 @@ export function Hero() {
           >
             Upload your mechanic&apos;s estimate — BMW, Toyota, Honda, Ford, or anything else.
             We match the parts to online prices and show how much you can save, then you buy
-            from Amazon, RockAuto, FCP Euro, or eBay. Free to use; retailers ship to you.
+            from verified retailer listings when available. Free to use; retailers handle checkout and shipping.
           </motion.p>
           <motion.div
             variants={fadeUp}
@@ -103,7 +103,7 @@ export function Hero() {
               <ShieldCheck className="size-4 text-[#4da3dd]" /> OEM &amp; OE-supplier parts
             </span>
             <span className="flex items-center gap-2">
-              <Star className="size-4 text-[#4da3dd]" /> Avg. 38% parts savings
+              <Star className="size-4 text-[#4da3dd]" /> Parts-only comparisons
             </span>
             <span className="flex items-center gap-2">
               <BadgeDollarSign className="size-4 text-[#4da3dd]" /> Free — buy at retailers
@@ -139,7 +139,7 @@ function SavingsExampleCard() {
               Example — shop vs online
             </p>
             <span className="rounded-full bg-[#0066B1]/20 px-3 py-1 text-xs font-bold text-[#4da3dd]">
-              Real savings
+              Illustrative savings
             </span>
           </div>
           <div className="mt-6 space-y-4">
@@ -188,13 +188,13 @@ const steps = [
   },
   {
     icon: BadgeDollarSign,
-    title: "See real prices",
-    body: "We match each part and show shop price vs online price, line by line.",
+    title: "See verified prices",
+    body: "We compare the shop's parts charge with exact retailer listings where available.",
   },
   {
     icon: ExternalLink,
     title: "Buy at a retailer",
-    body: "Click Amazon, RockAuto, FCP Euro, or eBay for each part. They ship to you — we never charge you for parts.",
+    body: "Open the exact verified product page. The retailer handles payment, returns, and shipping.",
   },
 ];
 
@@ -210,7 +210,7 @@ export function HowItWorks() {
       >
         <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">How it works</h2>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          From a shop estimate to cheaper parts online in four steps — no account, no cart.
+          From a shop estimate to verified retailer options in four clear steps.
         </p>
       </motion.div>
       <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -243,7 +243,7 @@ export function HowItWorks() {
 }
 
 const trustItems = [
-  { stat: "38%", label: "average savings on parts vs. shop pricing" },
+  { stat: "Parts only", label: "labor is kept separate so savings stay honest" },
   { stat: "Any make", label: "BMW, Toyota, Honda, Ford, and more" },
   { stat: "OEM + OE", label: "genuine & OE-supplier brands when we match a part" },
   { stat: "$0", label: "to use — upload and compare estimates completely free" },

@@ -148,6 +148,8 @@ model EstimateItem {
   retailerPrice Float?
   productTitle  String?
   retailerUrl   String?
+  retailerCheckedAt DateTime?
+  fitmentNote   String?
 
   estimate    Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   comparisons Comparison[]
@@ -170,6 +172,7 @@ model CatalogPart {
   imageUrl         String?
   amazonAsin       String?
   ebayItemId       String?
+  retailerCheckedAt DateTime?
   stockStatus      StockStatus @default(IN_STOCK)
   createdAt        DateTime    @default(now())
 
@@ -179,6 +182,18 @@ model CatalogPart {
 
   @@index([category])
   @@index([brand])
+}
+
+model OutboundClick {
+  id        String   @id @default(cuid())
+  retailer  String
+  url       String   @db.Text
+  partName  String?
+  vehicle   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([retailer])
 }
 
 model Comparison {

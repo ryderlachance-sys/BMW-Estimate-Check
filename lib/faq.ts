@@ -9,7 +9,7 @@ export const faqItems = [
   },
   {
     q: "Are these cheap knock-off parts?",
-    a: "No. We point you to OEM and OE-supplier brands on retailers like RockAuto, FCP Euro, Amazon, and eBay.",
+    a: "No. We prioritize exact OEM and reputable OE-supplier listings. A buy button appears only after the retailer product has been verified.",
   },
   {
     q: "Do you sell or ship the parts?",

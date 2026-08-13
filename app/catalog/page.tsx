@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CatalogFilters } from "@/components/catalog-controls";
 import { CatalogPartImage } from "@/components/catalog-part-image";
 import { AffiliateBuyButtons } from "@/components/affiliate-links";
-import { bestBuyForPart, buildAffiliateLinks } from "@/lib/affiliates";
+import { buildAffiliateLinks } from "@/lib/affiliates";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Parts Catalog",
   description:
-    "Browse OEM and OE-supplier parts with fitment by make, model, and year. Buy via Amazon, RockAuto, FCP Euro, or eBay.",
+    "Browse automotive parts with listed vehicle compatibility and verified retailer links when available.",
   alternates: { canonical: "/catalog" },
 };
 
@@ -76,15 +76,19 @@ export default async function CatalogPage({
         sku: p.sku,
         brand: { "@type": "Brand", name: p.brand },
         description: p.description,
-        offers: {
-          "@type": "Offer",
-          price: p.price.toFixed(2),
-          priceCurrency: "USD",
-          availability:
-            p.stockStatus === "OUT_OF_STOCK"
-              ? "https://schema.org/OutOfStock"
-              : "https://schema.org/InStock",
-        },
+        ...(p.amazonAsin || p.ebayItemId
+          ? {
+              offers: {
+                "@type": "Offer",
+                price: p.price.toFixed(2),
+                priceCurrency: "USD",
+                availability:
+                  p.stockStatus === "OUT_OF_STOCK"
+                    ? "https://schema.org/OutOfStock"
+                    : "https://schema.org/InStock",
+              },
+            }
+          : {}),
       },
     })),
   };
@@ -99,7 +103,7 @@ export default async function CatalogPage({
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Car Parts Catalog</h1>
           <p className="mt-2 text-muted-foreground">
-            Genuine and OE-supplier parts filtered by listed vehicle compatibility.
+            Reference catalog with exact retailer links only where the listing has been verified.
           </p>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -148,8 +152,20 @@ export default async function CatalogPage({
                   </p>
                   <div className="mt-auto pt-4">
                     <p className="text-xl font-extrabold tabular-nums">
+                      <span className="mr-1 text-xs font-semibold text-muted-foreground">
+                        {part.amazonAsin || part.ebayItemId ? "Verified" : "Catalog estimate"}
+                      </span>
                       {formatCurrency(part.price)}
                     </p>
+                    {part.retailerCheckedAt && (
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Price checked {part.retailerCheckedAt.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    )}
                     <div className="mt-3 space-y-2">
                       {(() => {
                         const q = {
@@ -157,13 +173,21 @@ export default async function CatalogPage({
                           name: part.name,
                           oemNumbers: part.oemNumbers,
                         };
-                        const best = bestBuyForPart(q);
-                        return (
+                        const directLinks = buildAffiliateLinks({
+                          ...q,
+                          amazonAsin: part.amazonAsin,
+                          ebayItemId: part.ebayItemId,
+                        }).filter((link) => link.isProductPage);
+                        return directLinks.length > 0 ? (
                           <AffiliateBuyButtons
-                            links={buildAffiliateLinks(q)}
+                            links={directLinks}
                             compact
-                            primaryId={best.id}
+                            primaryId={directLinks[0].id}
                           />
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Exact retailer listing not verified yet
+                          </p>
                         );
                       })()}
                     </div>
