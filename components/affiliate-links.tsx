@@ -97,6 +97,7 @@ export function FitmentInterstitial({
     fitment?.savingsPercent != null && fitment.savingsPercent > 0
       ? Math.round(fitment.savingsPercent)
       : null;
+  const exactProduct = link.isProductPage === true;
 
   return (
     <div
@@ -127,12 +128,17 @@ export function FitmentInterstitial({
           Verify fitment before you buy
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          {pct != null ? (
+          {exactProduct && pct != null ? (
             <>
               We found this part about <strong>{pct}% cheaper</strong> on {link.label}.
             </>
-          ) : (
+          ) : exactProduct ? (
             <>We found a match on {link.label}.</>
+          ) : (
+            <>
+              We built a focused {link.label} search using the vehicle and part from your
+              estimate.
+            </>
           )}{" "}
           Cars often change parts mid-year, and trim/engine variants matter. Always confirm
           fitment for <strong>{car}</strong>
@@ -159,7 +165,7 @@ export function FitmentInterstitial({
             onClick={onClose}
           >
             <Button type="button" className="h-11 w-full gap-1.5 font-bold">
-              Continue to {link.label}
+              {exactProduct ? `Continue to ${link.label}` : `See options on ${link.label}`}
               <ExternalLink className="size-4" />
             </Button>
           </a>

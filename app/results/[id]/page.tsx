@@ -223,7 +223,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 ? "We’ll show exact verified listings where fitment data is available."
                 : verifiedOnline > 0
                 ? `Mechanic parts ${formatCurrency(verifiedShop)} · verified online ${formatCurrency(verifiedOnline)}`
-                : "We read these lines from your estimate. Exact retailer matches are being verified."}
+                : "We found the parts. Choose a retailer below and confirm fitment before buying."}
             </p>
           </div>
           <VerifiedPartsCheckout items={checkoutItems} />

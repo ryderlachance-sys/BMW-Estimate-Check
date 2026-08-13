@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ExternalLink, ShieldCheck } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import {
   FitmentInterstitial,
   type FitmentContext,
@@ -38,12 +38,47 @@ export function PartBuyAction({
   );
 
   if (!recommended) {
+    const searchLink = amazon;
+    const searchAlternatives = [ebay, rockAuto].filter(
+      (link) => link.url !== searchLink.url
+    );
+
     return (
       <div className={cn("w-full sm:w-[15rem] sm:shrink-0", className)}>
-        <div className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border bg-background px-4 text-center text-xs font-semibold text-muted-foreground">
-          <ShieldCheck className="size-4 shrink-0" />
-          Exact retailer listing being verified
-        </div>
+        <button
+          type="button"
+          onClick={() => setPending(searchLink)}
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 active:scale-[0.99]"
+        >
+          Find this part on Amazon
+          <ExternalLink className="size-3.5 opacity-80" />
+        </button>
+        <details className="mt-1.5 text-center">
+          <summary className="cursor-pointer list-none text-[11px] font-semibold text-muted-foreground hover:text-foreground">
+            Compare other stores
+          </summary>
+          <div className="mt-2 grid gap-1.5 rounded-xl border bg-background p-2 text-left">
+            {searchAlternatives.map((link) => (
+              <button
+                key={link.id}
+                type="button"
+                onClick={() => setPending(link)}
+                className="flex min-h-9 items-center justify-between rounded-lg px-2.5 text-xs font-semibold hover:bg-secondary"
+              >
+                <span>Search {link.label}</span>
+                <ExternalLink className="size-3.5 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        </details>
+
+        {pending && (
+          <FitmentInterstitial
+            link={pending}
+            fitment={fitment}
+            onClose={() => setPending(null)}
+          />
+        )}
       </div>
     );
   }
