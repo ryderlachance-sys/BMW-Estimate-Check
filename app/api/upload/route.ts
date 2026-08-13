@@ -70,6 +70,9 @@ export async function POST(req: Request) {
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: "File is larger than 16 MB" }, { status: 400 });
     }
+    if (file.size === 0) {
+      return NextResponse.json({ error: "That file is empty" }, { status: 400 });
+    }
 
     const filename = `estimates/${crypto.randomUUID()}${ext}`;
     const bytes = Buffer.from(await file.arrayBuffer());

@@ -102,6 +102,7 @@ export function UploadForm() {
           onChange={(e) => {
             autoSubmitted.current = false;
             setPasteText(e.target.value);
+            setUploadError(null);
           }}
           rows={ocrWeak ? 8 : 4}
           placeholder={`2019 Lexus RX 350\nFront brake pads  $189.00\nBrake rotors  $320.00\nAlternator  $450.00`}
@@ -140,7 +141,7 @@ export function UploadForm() {
       {pending && (
         <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
-          Pulling year, model, and parts with AI…
+          Reading the vehicle, parts, and prices…
         </p>
       )}
     </form>

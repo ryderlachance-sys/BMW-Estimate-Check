@@ -91,9 +91,23 @@ export function EstimateDropzone({
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("Uploading…");
+  const allowedTypes = new Set([
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+  ]);
 
   async function handleFile(file: File | undefined | null) {
     if (!file || uploading) return;
+    if (!allowedTypes.has(file.type)) {
+      onError("Choose a PDF, PNG, JPG, or WebP estimate.");
+      return;
+    }
+    if (file.size > 16 * 1024 * 1024) {
+      onError("That file is larger than 16 MB. Try a smaller image or PDF.");
+      return;
+    }
     setUploading(true);
     setStatus("Uploading…");
     try {
@@ -110,7 +124,10 @@ export function EstimateDropzone({
       if (file.type.startsWith("image/")) {
         setStatus("Reading text from photo…");
         try {
-          extractedText = await ocrInBrowser(file);
+          extractedText = await Promise.race([
+            ocrInBrowser(file),
+            new Promise<string>((resolve) => window.setTimeout(() => resolve(""), 45_000)),
+          ]);
         } catch {
           extractedText = "";
         }
@@ -166,6 +183,7 @@ export function EstimateDropzone({
       <input
         ref={inputRef}
         type="file"
+        aria-label="Choose an estimate file"
         accept="application/pdf,image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={(e) => {

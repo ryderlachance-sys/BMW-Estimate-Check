@@ -44,7 +44,11 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-zinc-800 py-6 text-center text-xs text-zinc-500">
-        © {new Date().getFullYear()} Engine Genie. All rights reserved.
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+          <span>© {new Date().getFullYear()} Engine Genie. All rights reserved.</span>
+          <Link href="/privacy" className="hover:text-white">Privacy</Link>
+          <Link href="/terms" className="hover:text-white">Terms</Link>
+        </div>
       </div>
     </footer>
   );

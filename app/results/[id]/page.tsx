@@ -7,7 +7,6 @@ import { ensureUser } from "@/lib/auth";
 import { formatCurrency, round2 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  AddAllToCartButton,
   ProcessingPoller,
   RetryParseButton,
 } from "@/components/results-actions";
@@ -460,18 +459,6 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           );
         })}
       </ul>
-
-      <div className="mt-7">
-        <AddAllToCartButton
-          estimateId={estimate.id}
-          count={primaryLines.length}
-          variant="default"
-          className="w-full"
-        />
-        <p className="mt-2 text-center text-xs text-muted-foreground">
-          Uses one OEM/premium recommendation per repair line so the checkout total matches this page.
-        </p>
-      </div>
 
       <div className="mt-10 text-center">
         <Link
