@@ -132,8 +132,10 @@ export function mapGptExtractToParsed(
       quantity: 1,
       mechanicPrice: Math.round(p.mechanic_price * 100) / 100,
       oemPartNumber: null as string | null,
-      amazonAsin: normalizeAsin(p.amazon_asin ?? null),
-      ebayItemId: normalizeEbayItemId(p.ebay_item_id ?? null),
+      // Language models cannot verify live marketplace listings. Direct IDs
+      // must come from curated catalog data or a retailer API.
+      amazonAsin: null,
+      ebayItemId: null,
     }));
 
   const partsSum = parts.reduce((s, p) => s + p.mechanicPrice, 0);

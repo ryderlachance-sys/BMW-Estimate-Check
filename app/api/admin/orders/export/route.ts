@@ -29,7 +29,7 @@ export async function GET() {
     o.id,
     o.createdAt.toISOString(),
     o.user.name ?? "",
-    o.user.email,
+    o.customerEmail ?? o.user.email,
     o.status,
     o.shippingDestination,
     o.subtotal.toFixed(2),

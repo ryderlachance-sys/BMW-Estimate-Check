@@ -19,6 +19,12 @@ const BodySchema = z.object({
  */
 export async function POST(req: Request) {
   const expected = process.env.FULFILLMENT_WEBHOOK_SECRET?.trim();
+  if (!expected || expected === "change-me-to-a-long-random-string") {
+    return NextResponse.json(
+      { error: "Fulfillment callback authentication is not configured" },
+      { status: 503 }
+    );
+  }
   let json: unknown;
   try {
     json = await req.json();
@@ -35,7 +41,7 @@ export async function POST(req: Request) {
   const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   const provided = parsed.data.secret ?? bearer ?? req.headers.get("x-fulfillment-secret");
 
-  if (expected && provided !== expected) {
+  if (provided !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

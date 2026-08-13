@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { BarChart3, FileText, Package, ShieldCheck, Users, Warehouse } from "lucide-react";
 import { getAdminUser } from "@/lib/auth";
+import { adminLogout } from "@/app/actions/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ const nav = [
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await getAdminUser();
-  if (!admin) notFound();
+  if (!admin) redirect("/owner-login");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -29,10 +30,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <span className="flex size-10 items-center justify-center rounded-lg bg-foreground text-background">
           <ShieldCheck className="size-5" />
         </span>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-extrabold tracking-tight">Admin</h1>
           <p className="text-sm text-muted-foreground">Signed in as {admin.email}</p>
         </div>
+        <form action={adminLogout}>
+          <button className="text-sm font-semibold text-muted-foreground hover:text-foreground">
+            Sign out
+          </button>
+        </form>
       </div>
 
       <nav className="mt-8 flex flex-wrap gap-2 border-b pb-4">

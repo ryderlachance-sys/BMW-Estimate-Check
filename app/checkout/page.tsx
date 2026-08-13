@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { CheckoutForm } from "@/components/checkout-form";
 import { isStripeConfigured } from "@/lib/stripe";
+import { isAutoDropshipConfigured } from "@/lib/fulfillment";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function CheckoutPage({
   const { cancelled } = await searchParams;
   const user = await ensureUser();
   const stripeEnabled = isStripeConfigured();
+  const fulfillmentReady = isAutoDropshipConfigured().ready;
   const [cart, mechanics] = await Promise.all([
     db.cart.findUnique({
       where: { userId: user.id },
@@ -69,7 +71,10 @@ export default async function CheckoutPage({
             <CheckoutForm
               savedMechanics={mechanics}
               deliveryLabel={delivery.label}
-              stripeEnabled={stripeEnabled}
+              stripeEnabled={stripeEnabled && fulfillmentReady}
+              orderingEnabled={
+                process.env.NODE_ENV !== "production" || (stripeEnabled && fulfillmentReady)
+              }
             />
           </CardContent>
         </Card>

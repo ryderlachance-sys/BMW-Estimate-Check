@@ -59,7 +59,8 @@ export function isAutoDropshipConfigured(): {
   );
   const webhook = Boolean(process.env.FULFILLMENT_WEBHOOK_URL?.trim());
   const emailBuyer = Boolean(process.env.FULFILLMENT_EMAIL?.trim());
-  return { orderDesk, webhook, emailBuyer, ready: orderDesk || webhook };
+  const liveApproved = process.env.FULFILLMENT_LIVE_ENABLED === "true";
+  return { orderDesk, webhook, emailBuyer, ready: liveApproved && (orderDesk || webhook) };
 }
 
 function buildShipTo(order: {
@@ -271,7 +272,7 @@ export async function startFulfillment(orderId: string): Promise<void> {
 
   const payload: ProcurementPayload = {
     orderId: order.id,
-    customerEmail: order.user.email,
+    customerEmail: order.customerEmail ?? order.user.email,
     total: order.total,
     currency: "usd",
     shipTo,
@@ -382,7 +383,7 @@ export async function startFulfillment(orderId: string): Promise<void> {
   await sendOrderEmail({
     userId: order.userId,
     orderId: order.id,
-    toEmail: order.user.email,
+    toEmail: order.customerEmail ?? order.user.email,
     type: "PARTS_ORDERING",
     subject: `We're ordering your parts — #${order.id.slice(-8).toUpperCase()}`,
     body: [
@@ -453,7 +454,7 @@ export async function markFulfillmentShipped(
   await sendOrderEmail({
     userId: order.userId,
     orderId: order.id,
-    toEmail: order.user.email,
+    toEmail: order.customerEmail ?? order.user.email,
     type: "PARTS_SHIPPED",
     subject: `Parts shipped — tracking ${trackingNumber}`,
     body: [

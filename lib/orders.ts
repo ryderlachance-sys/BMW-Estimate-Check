@@ -41,7 +41,7 @@ export async function finalizePaidOrder(orderId: string): Promise<void> {
       await sendOrderEmail({
         userId: order.userId,
         orderId: order.id,
-        toEmail: order.user.email,
+        toEmail: order.customerEmail ?? order.user.email,
         type: "ORDER_CONFIRMED",
         subject: `Payment received — shipping to ${order.mechanicShopName}`,
         body: [
@@ -65,7 +65,7 @@ export async function finalizePaidOrder(orderId: string): Promise<void> {
         await sendOrderEmail({
           userId: order.userId,
           orderId: order.id,
-          toEmail: order.user.email,
+          toEmail: order.customerEmail ?? order.user.email,
           type: "DELIVERY_AFTER_APPOINTMENT",
           subject: "Heads up: parts may arrive after your appointment",
           body: [
@@ -84,7 +84,7 @@ export async function finalizePaidOrder(orderId: string): Promise<void> {
       await sendOrderEmail({
         userId: order.userId,
         orderId: order.id,
-        toEmail: order.user.email,
+        toEmail: order.customerEmail ?? order.user.email,
         type: "ORDER_CONFIRMED",
         subject: `Payment received — #${order.id.slice(-8).toUpperCase()}`,
         body: [

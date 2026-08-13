@@ -1,23 +1,23 @@
 {
-  "name": "bmw-estimate-check",
+  "name": "engine-genie",
   "version": "1.0.0",
   "private": true,
-  "description": "Compare BMW mechanic repair estimates against OEM and aftermarket part prices, then buy the parts online.",
+  "description": "Analyze car repair estimates and compare parts with catalog reference prices.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "tsc --noEmit --incremental false",
     "postinstall": "prisma generate",
     "db:local": "tsx scripts/dev-db.ts",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "node --import tsx prisma/seed.ts",
     "test:flows": "tsx --conditions=react-server scripts/test-flows.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --incremental false"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node --import tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",

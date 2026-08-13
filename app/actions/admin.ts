@@ -59,7 +59,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
     await sendOrderEmail({
       userId: order.userId,
       orderId: order.id,
-      toEmail: order.user.email,
+      toEmail: order.customerEmail ?? order.user.email,
       type: "PARTS_DELIVERED",
       subject: `Parts delivered to ${dest}`,
       body: [

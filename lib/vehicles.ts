@@ -58,7 +58,7 @@ export const MODELS_BY_MAKE: Record<string, string[]> = {
   Volkswagen: ["Jetta", "Golf", "Passat", "Tiguan", "Atlas", "ID.4"],
   Audi: ["A3", "A4", "A5", "A6", "Q3", "Q5", "Q7", "Q8"],
   "Mercedes-Benz": ["C-Class", "E-Class", "GLC", "GLE", "CLA", "S-Class"],
-  Lexus: ["RX", "ES", "NX", "IS", "GX", "UX"],
+  Lexus: ["RX 350", "RX 350h", "RX 500h", "RX", "ES 350", "ES", "NX 350", "NX", "IS 350", "IS", "GX 460", "GX", "UX"],
   Jeep: ["Wrangler", "Grand Cherokee", "Cherokee", "Gladiator", "Compass"],
   Ram: ["1500", "2500", "3500"],
   GMC: ["Sierra", "Yukon", "Terrain", "Acadia", "Canyon"],
@@ -71,7 +71,7 @@ const MAKE_RE =
   /\b(BMW|Toyota|Honda|Ford|Chevrolet|Chevy|Nissan|Hyundai|Kia|Subaru|Mazda|Volkswagen|VW|Audi|Mercedes[- ]?Benz|Mercedes|Lexus|Jeep|Ram|GMC|Dodge|Tesla|Acura|Buick|Cadillac|Chrysler|Infiniti|Lincoln|Volvo|Porsche|Mini)\b/i;
 
 const NON_BMW_MODELS =
-  /\b(Camry|Corolla|RAV4|Highlander|Tacoma|Tundra|Prius|4Runner|Sienna|Civic|Accord|CR-?V|Pilot|Odyssey|HR-?V|F-?150|F-?250|Mustang|Escape|Explorer|Edge|Bronco|Ranger|Silverado|Equinox|Malibu|Tahoe|Altima|Sentra|Rogue|Elantra|Sonata|Tucson|Santa\s*Fe|Outback|Forester|Crosstrek|Jetta|Golf|Tiguan|Wrangler|Grand\s*Cherokee|Model\s*[3YXS]|CX-?[3590]+|Mazda[36])\b/i;
+  /\b(RX\s?350h?|RX\s?500h|ES\s?350|NX\s?350|IS\s?350|GX\s?460|Camry|Corolla|RAV4|Highlander|Tacoma|Tundra|Prius|4Runner|Sienna|Civic|Accord|CR-?V|Pilot|Odyssey|HR-?V|F-?150|F-?250|Mustang|Escape|Explorer|Edge|Bronco|Ranger|Silverado|Equinox|Malibu|Tahoe|Altima|Sentra|Rogue|Elantra|Sonata|Tucson|Santa\s*Fe|Outback|Forester|Crosstrek|Jetta|Golf|Tiguan|Wrangler|Grand\s*Cherokee|Model\s*[3YXS]|CX-?[3590]+|Mazda[36])\b/i;
 
 export function normalizeMake(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -113,6 +113,7 @@ export function extractMakeFromText(text: string): string | null {
     if (/outback|forester|crosstrek/.test(model)) return "Subaru";
     if (/jetta|golf|tiguan/.test(model)) return "Volkswagen";
     if (/wrangler|cherokee/.test(model)) return "Jeep";
+    if (/^(rx|es|nx|is|gx)\s?\d/i.test(model)) return "Lexus";
     if (/model\s*[3yxs]/.test(model)) return "Tesla";
     if (/cx-|mazda/.test(model)) return "Mazda";
   }

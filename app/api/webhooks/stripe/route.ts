@@ -22,13 +22,25 @@ export async function POST(req: Request) {
   const signature = req.headers.get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
+  if (process.env.NODE_ENV === "production" && !webhookSecret) {
+    return NextResponse.json(
+      { error: "Stripe webhook signing is not configured" },
+      { status: 503 }
+    );
+  }
+  if (webhookSecret && !signature) {
+    return NextResponse.json({ error: "Missing Stripe signature" }, { status: 401 });
+  }
+
   let event;
   try {
     if (webhookSecret && signature) {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } else {
+    } else if (process.env.NODE_ENV !== "production") {
       // Dev convenience when webhook secret isn't set yet — still parse JSON.
       event = JSON.parse(body);
+    } else {
+      return NextResponse.json({ error: "Webhook verification required" }, { status: 401 });
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid signature";
@@ -51,9 +63,6 @@ export async function POST(req: Request) {
       )?.id;
 
     if (orderId && session.payment_status === "paid") {
-      await finalizePaidOrder(orderId);
-    } else if (orderId && !session.payment_status) {
-      // Some webhook payloads omit payment_status when already completed.
       await finalizePaidOrder(orderId);
     }
   }

@@ -3,6 +3,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { put } from "@vercel/blob";
+import { cookies } from "next/headers";
+import { CUSTOMER_COOKIE, readCustomerToken } from "@/lib/session";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "application/pdf": ".pdf",
@@ -12,6 +14,18 @@ const ALLOWED_TYPES: Record<string, string> = {
 };
 
 const MAX_SIZE = 16 * 1024 * 1024; // 16 MB
+const uploadWindows = new Map<string, { count: number; resetAt: number }>();
+const MAX_UPLOADS_PER_HOUR = 12;
+
+function hasExpectedSignature(bytes: Buffer, type: string): boolean {
+  if (type === "application/pdf") return bytes.subarray(0, 5).toString("ascii") === "%PDF-";
+  if (type === "image/png") return bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  if (type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (type === "image/webp") {
+    return bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+  }
+  return false;
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +36,24 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: Request) {
   try {
+    const store = await cookies();
+    const sessionId = await readCustomerToken(store.get(CUSTOMER_COOKIE)?.value);
+    if (!sessionId) {
+      return NextResponse.json({ error: "Refresh the page before uploading." }, { status: 401 });
+    }
+    const now = Date.now();
+    const current = uploadWindows.get(sessionId);
+    if (current && current.resetAt > now && current.count >= MAX_UPLOADS_PER_HOUR) {
+      return NextResponse.json(
+        { error: "Upload limit reached. Try again in an hour." },
+        { status: 429 }
+      );
+    }
+    uploadWindows.set(sessionId, {
+      count: current && current.resetAt > now ? current.count + 1 : 1,
+      resetAt: current && current.resetAt > now ? current.resetAt : now + 60 * 60 * 1000,
+    });
+
     const form = await req.formData();
     const file = form.get("file");
 
@@ -41,6 +73,12 @@ export async function POST(req: Request) {
 
     const filename = `estimates/${crypto.randomUUID()}${ext}`;
     const bytes = Buffer.from(await file.arrayBuffer());
+    if (!hasExpectedSignature(bytes, file.type)) {
+      return NextResponse.json(
+        { error: "That file does not match its declared PDF or image format." },
+        { status: 400 }
+      );
+    }
 
     if (process.env.BLOB_READ_WRITE_TOKEN) {
       const blob = await put(filename, bytes, {

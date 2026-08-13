@@ -34,22 +34,42 @@ export async function sendOrderEmail(opts: {
     },
   });
 
-  const dir = path.join(process.cwd(), ".emails");
-  await mkdir(dir, { recursive: true });
-  const file = path.join(
-    dir,
-    `${record.createdAt.toISOString().replace(/[:.]/g, "-")}-${opts.type}-${opts.orderId.slice(-8)}.txt`
-  );
-  await writeFile(
-    file,
-    [
-      `To: ${opts.toEmail}`,
-      `Subject: ${opts.subject}`,
-      `Type: ${opts.type}`,
-      `Order: ${opts.orderId}`,
-      "",
-      opts.body,
-    ].join("\n"),
-    "utf8"
-  );
+  const resendKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.EMAIL_FROM?.trim();
+  if (resendKey && from && !opts.toEmail.endsWith("@users.enginegenie.local")) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ from, to: [opts.toEmail], subject: opts.subject, text: opts.body }),
+      });
+      if (!response.ok) console.error("email delivery failed", response.status);
+    } catch (error) {
+      console.error("email delivery failed", error);
+    }
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    const dir = path.join(process.cwd(), ".emails");
+    await mkdir(dir, { recursive: true });
+    const file = path.join(
+      dir,
+      `${record.createdAt.toISOString().replace(/[:.]/g, "-")}-${opts.type}-${opts.orderId.slice(-8)}.txt`
+    );
+    await writeFile(
+      file,
+      [
+        `To: ${opts.toEmail}`,
+        `Subject: ${opts.subject}`,
+        `Type: ${opts.type}`,
+        `Order: ${opts.orderId}`,
+        "",
+        opts.body,
+      ].join("\n"),
+      "utf8"
+    );
+  }
 }

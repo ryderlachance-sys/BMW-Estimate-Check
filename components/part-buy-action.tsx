@@ -7,7 +7,7 @@ import {
   type FitmentContext,
 } from "@/components/affiliate-links";
 import type { ProductBuyBundle, PricedAffiliateLink } from "@/lib/affiliates";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 /**
  * Amazon + eBay product-style CTAs (primary).
@@ -35,7 +35,7 @@ export function PartBuyAction({
         onClick={() => setPending(rockAuto)}
         className="mt-0.5 text-left text-[11px] leading-snug text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:text-right"
       >
-        Alternative wholesaler deal on RockAuto ({formatCurrency(rockAuto.estimatedPrice)})
+        Compare availability on RockAuto
       </button>
 
       {pending && (
@@ -70,7 +70,7 @@ function PrimaryBuyButton({
           : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50"
       )}
     >
-      Buy on {link.label} ({formatCurrency(link.estimatedPrice)})
+      Check price on {link.label}
       <ExternalLink className="size-3.5 opacity-80" />
     </button>
   );

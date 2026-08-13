@@ -8,6 +8,12 @@ import { calculateShipping, round2 } from "@/lib/utils";
 import { estimateDeliveryWindow } from "@/lib/delivery";
 import { finalizePaidOrder } from "@/lib/orders";
 import { dollarsToCents, getStripe, isStripeConfigured } from "@/lib/stripe";
+import { isAutoDropshipConfigured } from "@/lib/fulfillment";
+
+const CustomerSchema = z.object({
+  customerName: z.string().min(2, "Your name is required"),
+  email: z.string().email("Enter a valid email address"),
+});
 
 const HomeSchema = z.object({
   destination: z.literal("HOME"),
@@ -63,6 +69,32 @@ export async function placeOrder(
 ): Promise<PlaceOrderState> {
   const user = await ensureUser();
   const destination = String(formData.get("destination") ?? "HOME");
+
+  if (process.env.NODE_ENV === "production") {
+    if (!isStripeConfigured()) {
+      return { error: "Payments are not configured yet. No payment was taken." };
+    }
+    if (!isAutoDropshipConfigured().ready) {
+      return {
+        error:
+          "Online ordering is temporarily unavailable while supplier fulfillment is being connected. No payment was taken.",
+      };
+    }
+  }
+  const customer = CustomerSchema.safeParse({
+    customerName: formData.get("customerName"),
+    email: formData.get("email"),
+  });
+  if (!customer.success) {
+    return { error: customer.error.errors[0]?.message ?? "Enter your contact details" };
+  }
+
+  await db.user.update({
+    where: { id: user.id },
+    data: {
+      name: customer.data.customerName.trim(),
+    },
+  });
 
   const cart = await db.cart.findUnique({
     where: { userId: user.id },
@@ -146,6 +178,7 @@ export async function placeOrder(
     const order = await db.order.create({
       data: {
         userId: user.id,
+        customerEmail: customer.data.email.trim().toLowerCase(),
         subtotal,
         shipping: shippingCost,
         tax: 0,
@@ -193,6 +226,7 @@ export async function placeOrder(
     const order = await db.order.create({
       data: {
         userId: user.id,
+        customerEmail: customer.data.email.trim().toLowerCase(),
         subtotal,
         shipping: shippingCost,
         tax: 0,
@@ -220,6 +254,12 @@ export async function placeOrder(
 
   // Real money path: Stripe-hosted card form.
   if (isStripeConfigured()) {
+    if (!isAutoDropshipConfigured().ready) {
+      return {
+        error:
+          "Online ordering is temporarily unavailable while supplier fulfillment is being connected. No payment was taken.",
+      };
+    }
     const stripe = getStripe();
     const order = await db.order.findUniqueOrThrow({
       where: { id: orderId },
@@ -254,7 +294,7 @@ export async function placeOrder(
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      customer_email: user.email,
+      customer_email: customer.data.email.trim().toLowerCase(),
       line_items: lineItems,
       client_reference_id: order.id,
       metadata: { orderId: order.id, userId: user.id },
@@ -273,7 +313,7 @@ export async function placeOrder(
     redirect(session.url);
   }
 
-  // Demo path (no Stripe keys): mark paid locally so flows still work.
+  // Local development demo path only; never marks production orders paid.
   await finalizePaidOrder(orderId);
   redirect(`/checkout/success?order=${orderId}`);
 }

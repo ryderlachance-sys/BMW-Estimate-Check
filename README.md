@@ -1,4 +1,12 @@
-# BMW Estimate Check
+# Engine Genie
+
+Engine Genie analyzes repair estimates for many vehicle makes, compares quoted
+part charges with catalog reference prices, and provides retailer or controlled
+on-site ordering flows.
+
+> Production safety: on-site card payments remain disabled until an authorized
+> supplier workflow is configured and `FULFILLMENT_LIVE_ENABLED=true`. See
+> [docs/SUPPLIER-LAUNCH.md](docs/SUPPLIER-LAUNCH.md).
 
 Stop overpaying for BMW repairs. Upload a mechanic estimate (PDF or photo),
 let the app extract every part and labor line, compare it against OEM and

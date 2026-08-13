@@ -46,8 +46,24 @@ export async function addAllFromEstimate(estimateId: string): Promise<void> {
 
   // Sum quantities when the same catalog part matches multiple estimate lines
   // (e.g. two turbo coolant lines → qty 2 of one SKU).
-  const qtyByPart = new Map<string, number>();
+  const primaryByLine = new Map<string, (typeof estimate.comparisons)[number]>();
   for (const comparison of estimate.comparisons) {
+    if (comparison.savings < 0) continue;
+    const lineId = comparison.estimateItemId ?? comparison.id;
+    const current = primaryByLine.get(lineId);
+    const premium = comparison.matchMethod !== "BUDGET";
+    const currentPremium = current ? current.matchMethod !== "BUDGET" : false;
+    if (
+      !current ||
+      (premium && !currentPremium) ||
+      (premium === currentPremium && comparison.matchScore > current.matchScore)
+    ) {
+      primaryByLine.set(lineId, comparison);
+    }
+  }
+
+  const qtyByPart = new Map<string, number>();
+  for (const comparison of primaryByLine.values()) {
     const quantity = comparison.estimateItem?.quantity ?? 1;
     qtyByPart.set(
       comparison.catalogPartId,
