@@ -104,20 +104,26 @@ export function PartEditor({
   partId,
   price,
   stockStatus,
+  amazonAsin,
+  ebayItemId,
 }: {
   partId: string;
   price: number;
   stockStatus: StockStatus;
+  amazonAsin: string | null;
+  ebayItemId: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [newPrice, setNewPrice] = useState(price.toFixed(2));
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [asin, setAsin] = useState(amazonAsin ?? "");
+  const [ebayId, setEbayId] = useState(ebayItemId ?? "");
   const parsedPrice = Number(newPrice);
   const priceValid = Number.isFinite(parsedPrice) && parsedPrice > 0;
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-72 flex-col gap-2">
       <div className="flex items-center gap-2">
         <Input
           type="number"
@@ -170,6 +176,48 @@ export function PartEditor({
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : saved ? <Check className="size-3.5" /> : "Save"}
         </Button>
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          value={asin}
+          onChange={(e) => { setAsin(e.target.value.toUpperCase()); setError(null); }}
+          placeholder="Amazon ASIN"
+          maxLength={10}
+          className="h-8 w-32 font-mono text-xs"
+          aria-label="Amazon ASIN"
+        />
+        <Input
+          value={ebayId}
+          onChange={(e) => { setEbayId(e.target.value.replace(/\D/g, "")); setError(null); }}
+          placeholder="eBay item ID"
+          className="h-8 w-36 font-mono text-xs"
+          aria-label="eBay item ID"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8"
+          disabled={pending}
+          onClick={() => startTransition(async () => {
+            try {
+              await updateCatalogPart(partId, {
+                price: parsedPrice,
+                amazonAsin: asin || null,
+                ebayItemId: ebayId || null,
+              });
+              setSaved(true);
+              setError(null);
+              setTimeout(() => setSaved(false), 1500);
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : "Could not save listing");
+            }
+          })}
+        >
+          {pending ? <Loader2 className="size-3.5 animate-spin" /> : "Save exact listing"}
+        </Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Price must match the exact Amazon ASIN or eBay item ID entered here.
+      </p>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
