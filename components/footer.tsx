@@ -29,7 +29,6 @@ export function Footer() {
           <p className="text-sm font-semibold uppercase tracking-wide text-white">Product</p>
           <ul className="mt-4 space-y-2 text-sm">
             <li><Link href="/upload" className="hover:text-white">Check an estimate</Link></li>
-            <li><Link href="/catalog" className="hover:text-white">Parts Catalog</Link></li>
           </ul>
         </div>
         <div>

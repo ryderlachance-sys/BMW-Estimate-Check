@@ -175,8 +175,8 @@ export default async function CheckoutSuccessPage({
             <Package className="size-4" /> Track my order
           </Button>
         </Link>
-        <Link href="/catalog">
-          <Button variant="outline">Keep shopping</Button>
+        <Link href="/upload">
+          <Button variant="outline">Check another estimate</Button>
         </Link>
       </div>
     </div>

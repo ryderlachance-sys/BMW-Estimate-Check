@@ -82,15 +82,6 @@ export function Hero() {
                 <ArrowRight className="size-5" />
               </Button>
             </Link>
-            <Link href="/catalog">
-              <Button
-                size="lg"
-                variant="outline"
-                className="w-full border-white/20 bg-transparent text-white hover:bg-white/10 sm:w-auto"
-              >
-                Browse Parts Catalog
-              </Button>
-            </Link>
           </motion.div>
           <motion.div
             variants={fadeUp}

@@ -24,14 +24,11 @@ export default async function CartPage() {
         <ShoppingCart className="size-12 text-muted-foreground/40" />
         <h1 className="mt-6 text-2xl font-bold">Your cart is empty</h1>
         <p className="mt-3 text-muted-foreground">
-          Upload an estimate to get matched parts, or browse the catalog.
+          Upload an estimate to identify the exact repair parts.
         </p>
         <div className="mt-8 flex gap-3">
           <Link href="/upload">
             <Button>Check an estimate</Button>
-          </Link>
-          <Link href="/catalog">
-            <Button variant="outline">Browse catalog</Button>
           </Link>
         </div>
       </div>

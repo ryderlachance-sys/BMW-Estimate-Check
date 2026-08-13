@@ -152,7 +152,6 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           i.description
         )
     );
-    const catalogHref = `/catalog?model=${encodeURIComponent(estimate.vehicle.model)}&year=${estimate.vehicle.year}`;
 
     // Parts were found but nothing in our catalog matched — still show shop
     // prices + affiliate search so the user can buy (and we can earn).
@@ -336,8 +335,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           }
         />
         <div className="mt-4 flex flex-wrap justify-center gap-3">
-          <Link href={catalogHref}>
-            <Button variant="outline">Browse {estimate.vehicle.model} parts</Button>
+          <Link href="/upload">
+            <Button variant="outline">Try another estimate</Button>
           </Link>
           <Link href="/upload">
             <Button variant="outline">Upload again</Button>
