@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import {
   FitmentInterstitial,
   type FitmentContext,
@@ -10,8 +10,10 @@ import type { ProductBuyBundle, PricedAffiliateLink } from "@/lib/affiliates";
 import { cn } from "@/lib/utils";
 
 /**
- * Amazon + eBay product-style CTAs (primary).
- * RockAuto as a quiet wholesaler text link (secondary).
+ * One clear recommendation. A direct product CTA is shown only when the
+ * catalog contains a verified ASIN or eBay item ID. Search fallbacks are
+ * labeled honestly so a customer never expects a single listing and lands on
+ * a results grid by surprise.
  */
 export function PartBuyAction({
   bundle,
@@ -23,20 +25,60 @@ export function PartBuyAction({
   className?: string;
 }) {
   const [pending, setPending] = useState<PricedAffiliateLink | null>(null);
+  const [showAlternatives, setShowAlternatives] = useState(false);
   const { amazon, ebay, rockAuto } = bundle;
 
+  const recommended = useMemo(
+    () =>
+      [amazon, ebay].find((link) => link.isProductPage) ?? amazon,
+    [amazon, ebay]
+  );
+  const alternatives = [amazon, ebay, rockAuto].filter(
+    (link) => link.id !== recommended.id
+  );
+
   return (
-    <div className={cn("flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-[14rem]", className)}>
-      <PrimaryBuyButton link={amazon} onClick={() => setPending(amazon)} />
-      <PrimaryBuyButton link={ebay} onClick={() => setPending(ebay)} tone="secondary" />
+    <div className={cn("w-full sm:w-[15rem] sm:shrink-0", className)}>
+      <button
+        type="button"
+        onClick={() => setPending(recommended)}
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.99]"
+      >
+        {recommended.isProductPage
+          ? `View recommended part on ${recommended.label}`
+          : `See matching options on ${recommended.label}`}
+        <ExternalLink className="size-3.5 opacity-80" />
+      </button>
 
       <button
         type="button"
-        onClick={() => setPending(rockAuto)}
-        className="mt-0.5 text-left text-[11px] leading-snug text-muted-foreground underline-offset-2 hover:text-foreground hover:underline sm:text-right"
+        aria-expanded={showAlternatives}
+        onClick={() => setShowAlternatives((value) => !value)}
+        className="mx-auto mt-2 flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
-        Compare availability on RockAuto
+        Compare other stores
+        <ChevronDown
+          className={cn("size-3.5 transition-transform", showAlternatives && "rotate-180")}
+        />
       </button>
+
+      {showAlternatives && (
+        <div className="mt-2 grid gap-1.5 rounded-xl border bg-background p-2">
+          {alternatives.map((link) => (
+            <button
+              key={link.id}
+              type="button"
+              onClick={() => setPending(link)}
+              className="flex min-h-9 items-center justify-between rounded-lg px-2.5 text-left text-xs font-semibold hover:bg-secondary"
+            >
+              <span>
+                {link.isProductPage ? "View product on" : "Search"} {link.label}
+              </span>
+              <ExternalLink className="size-3.5 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {pending && (
         <FitmentInterstitial
@@ -46,32 +88,5 @@ export function PartBuyAction({
         />
       )}
     </div>
-  );
-}
-
-function PrimaryBuyButton({
-  link,
-  onClick,
-  tone = "primary",
-}: {
-  link: PricedAffiliateLink;
-  onClick: () => void;
-  tone?: "primary" | "secondary";
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-3",
-        "text-sm font-bold tracking-tight shadow-sm transition active:scale-[0.99]",
-        tone === "primary"
-          ? "bg-zinc-950 text-white hover:bg-zinc-800"
-          : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50"
-      )}
-    >
-      Check price on {link.label}
-      <ExternalLink className="size-3.5 opacity-80" />
-    </button>
   );
 }

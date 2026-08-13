@@ -283,22 +283,31 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
       <ul className="mt-6 space-y-2.5">
         {lines.map((line) => {
           const primary = line.premium ?? line.budget!;
-          const tiers = [
-            line.premium
-              ? { label: "OEM / Premium", c: line.premium, badge: "quality" as const }
-              : null,
-            line.budget
-              ? { label: "Budget choice", c: line.budget, badge: "budget" as const }
-              : null,
-          ].filter(Boolean) as {
-            label: string;
-            c: (typeof comparisons)[0];
-            badge: "quality" | "budget";
-          }[];
-
           const shopName =
             primary.estimateItem?.description ?? primary.catalogPart.name;
           const qty = primary.estimateItem?.quantity ?? 1;
+          const query = {
+            brand: primary.catalogPart.brand,
+            name: primary.catalogPart.name,
+            oemNumbers: primary.catalogPart.oemNumbers,
+            oemPartNumber: primary.estimateItem?.oemPartNumber,
+            year: estimate.vehicle.year,
+            make: estimate.vehicle.make,
+            model: estimate.vehicle.model,
+            engine: estimate.vehicle.engine,
+            amazonAsin: primary.catalogPart.amazonAsin ?? primary.estimateItem?.amazonAsin,
+            ebayItemId: primary.catalogPart.ebayItemId ?? primary.estimateItem?.ebayItemId,
+          };
+          const bundle = buildProductBuyBundle(query, primary.ourPrice);
+          const title = cleanPartDisplayName(
+            primary.catalogPart.brand,
+            primary.catalogPart.name,
+            { isPremium: primary.matchMethod !== "BUDGET" }
+          );
+          const savingsPct =
+            primary.mechanicPrice > 0
+              ? (Math.max(0, primary.savings) / primary.mechanicPrice) * 100
+              : null;
 
           return (
             <li key={primary.id} className="rounded-xl border bg-card px-3 py-2.5 sm:px-3.5">
@@ -306,58 +315,31 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 Shop: {shopName}
                 {qty > 1 ? ` ×${qty}` : ""}
               </p>
-              <div className="mt-2 space-y-2">
-                {tiers.map(({ label, c, badge }) => {
-                  const query = {
-                    brand: c.catalogPart.brand,
-                    name: c.catalogPart.name,
-                    oemNumbers: c.catalogPart.oemNumbers,
-                    oemPartNumber: c.estimateItem?.oemPartNumber,
-                    year: estimate.vehicle.year,
-                    make: estimate.vehicle.make,
-                    model: estimate.vehicle.model,
-                    engine: estimate.vehicle.engine,
-                    amazonAsin: c.catalogPart.amazonAsin ?? c.estimateItem?.amazonAsin,
-                    ebayItemId: c.catalogPart.ebayItemId ?? c.estimateItem?.ebayItemId,
-                  };
-                  const bundle = buildProductBuyBundle(query, c.ourPrice);
-                  const title = cleanPartDisplayName(
-                    c.catalogPart.brand,
-                    c.catalogPart.name,
-                    { isPremium: badge === "quality" }
-                  );
-                  const savingsPct =
-                    c.mechanicPrice > 0
-                      ? (Math.max(0, c.savings) / c.mechanicPrice) * 100
-                      : null;
-                  return (
-                    <div
-                      key={c.id}
-                      className="flex flex-col gap-2.5 rounded-lg bg-secondary/40 px-2.5 py-2 sm:flex-row sm:items-center sm:gap-3"
-                    >
+              <div className="mt-2">
+                    <div className="flex flex-col gap-3 rounded-lg bg-secondary/40 px-3 py-3 sm:flex-row sm:items-center">
                       <div className="flex min-w-0 flex-1 items-center gap-2.5">
                         <CatalogPartImage
                           name={title}
-                          category={c.catalogPart.category}
-                          imageUrl={c.catalogPart.imageUrl}
+                          category={primary.catalogPart.category}
+                          imageUrl={primary.catalogPart.imageUrl}
                           className="relative size-10 shrink-0 overflow-hidden rounded-md bg-secondary"
                           sizes="40px"
                         />
                         <div className="min-w-0 flex-1">
                           <p className="text-[10px] font-bold uppercase tracking-wide text-primary">
-                            {label}
+                            Recommended part
                           </p>
                           <p className="truncate text-sm font-bold leading-snug">{title}</p>
                           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0">
                             <span className="text-xs tabular-nums text-muted-foreground line-through">
-                              {formatCurrency(c.mechanicPrice)}
+                              {formatCurrency(primary.mechanicPrice)}
                             </span>
                             <span className="text-sm font-extrabold tabular-nums text-primary">
-                              {formatCurrency(c.ourPrice)}
+                              {formatCurrency(primary.ourPrice)}
                             </span>
-                            {c.savings > 0 && (
+                            {primary.savings > 0 && (
                               <span className="text-[11px] font-semibold text-success">
-                                Save {formatCurrency(c.savings)}
+                                Save {formatCurrency(primary.savings)}
                               </span>
                             )}
                           </div>
@@ -376,8 +358,6 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                         }}
                       />
                     </div>
-                  );
-                })}
               </div>
             </li>
           );
