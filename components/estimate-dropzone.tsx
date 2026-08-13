@@ -175,10 +175,15 @@ export function EstimateDropzone({
         <CloudUpload className="size-9 text-primary" />
       )}
       <span className="font-semibold">
-        {uploading ? status : "Drop your estimate here, or click to browse"}
+        {uploading ? status : (
+          <>
+            <span className="sm:hidden">Tap to upload a screenshot, photo, or PDF</span>
+            <span className="hidden sm:inline">Drop your estimate here, or click to browse</span>
+          </>
+        )}
       </span>
       <span className="text-xs text-muted-foreground">
-        PDF, PNG, JPG, or WebP — up to 16 MB
+        Choose from Photos or Files · PDF, PNG, JPG, or WebP · up to 16 MB
       </span>
       <input
         ref={inputRef}

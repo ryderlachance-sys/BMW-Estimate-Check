@@ -19,7 +19,7 @@ export default function UploadPage() {
           Find cheaper parts
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Drop any estimate — we read the car from the paperwork when we can.
+          Upload a PDF, photo, or phone screenshot — we read the car from the paperwork when we can.
         </p>
       </div>
       <div className="mt-10">
