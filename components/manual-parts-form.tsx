@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 const YEARS = Array.from({ length: new Date().getFullYear() - 1989 }, (_, index) => new Date().getFullYear() - index);
 
 export function ManualPartsForm() {
-  const [make, setMake] = useState("Toyota");
+  const [make, setMake] = useState("");
   const models = useMemo(() => MODELS_BY_MAKE[make] ?? [], [make]);
 
   return (
@@ -27,13 +27,18 @@ export function ManualPartsForm() {
       </div>
       <div>
         <Label htmlFor="manual-make">Make</Label>
-        <Select id="manual-make" name="make" value={make} onChange={(event) => setMake(event.target.value)} className="mt-1.5">
+        <Select id="manual-make" name="make" required value={make} onChange={(event) => setMake(event.target.value)} className="mt-1.5">
+          <option value="" disabled>Select make</option>
           {MAKES.filter((item) => item !== "Other").map((item) => <option key={item} value={item}>{item}</option>)}
         </Select>
       </div>
       <div>
         <Label htmlFor="manual-model">Model</Label>
-        {models.length > 0 ? (
+        {!make ? (
+          <Select id="manual-model" name="model" required disabled defaultValue="" className="mt-1.5">
+            <option value="">Select make first</option>
+          </Select>
+        ) : models.length > 0 ? (
           <Select id="manual-model" name="model" required defaultValue="" className="mt-1.5">
             <option value="" disabled>Select model</option>
             {models.map((model) => <option key={model} value={model}>{model}</option>)}

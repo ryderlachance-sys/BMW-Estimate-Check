@@ -160,6 +160,24 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
   }
   const lines = [...byItem.values()];
   const primaryLines = lines.map((l) => l.premium ?? l.budget!).filter(Boolean);
+  const matchedItemIds = new Set(
+    primaryLines
+      .map((comparison) => comparison.estimateItemId)
+      .filter((id): id is string => Boolean(id))
+  );
+  const matchedDescriptions = new Set(
+    primaryLines
+      .map((comparison) => comparison.estimateItem?.description.trim().toLowerCase())
+      .filter((description): description is string => Boolean(description))
+  );
+  const unmatchedPartItems = estimate.items.filter(
+    (item) =>
+      !matchedItemIds.has(item.id) &&
+      !matchedDescriptions.has(item.description.trim().toLowerCase()) &&
+      !/job\s*t[ui]me|without\s+allowance|fuel\s+conditioning|998729|fr[uil]\b/i.test(
+        item.description
+      )
+  );
   const totalSavings = round2(
     primaryLines.reduce((s, c) => s + Math.max(0, c.savings), 0)
   );
@@ -403,15 +421,23 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
 
       <div className="mt-6 rounded-3xl bg-primary px-6 py-8 text-center text-primary-foreground">
         <p className="text-sm font-medium uppercase tracking-wide opacity-90">
-          {manualSearch ? "Estimated online parts total" : "Estimated parts savings"}
+          {manualSearch
+            ? unmatchedPartItems.length > 0
+              ? "Matched catalog total"
+              : "Estimated online parts total"
+            : unmatchedPartItems.length > 0
+              ? `Estimated savings on ${primaryLines.length} matched part${primaryLines.length === 1 ? "" : "s"}`
+              : "Estimated parts savings"}
         </p>
         <p className="mt-1 text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl">
           {formatCurrency(manualSearch ? onlineParts : Math.max(0, totalSavings))}
         </p>
         <p className="mt-3 text-sm opacity-90">
           {manualSearch
-            ? "Confirm current price and exact fitment with the retailer before buying."
-            : <>Shop wants {formatCurrency(shopParts)} for these parts → catalog estimate about {formatCurrency(onlineParts)}</>}
+            ? unmatchedPartItems.length > 0
+              ? `${primaryLines.length} matched · ${unmatchedPartItems.length} still needs retailer confirmation.`
+              : "Confirm current price and exact fitment with the retailer before buying."
+            : <>Matched shop parts {formatCurrency(shopParts)} → catalog estimate about {formatCurrency(onlineParts)}</>}
         </p>
       </div>
 
@@ -506,6 +532,77 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           );
         })}
       </ul>
+
+      {unmatchedPartItems.length > 0 && (
+        <section className="mt-6">
+          <div className="mb-3">
+            <h2 className="text-base font-extrabold">Still needs retailer confirmation</h2>
+            <p className="text-xs text-muted-foreground">
+              These repair lines did not have a safe catalog match, so they stay visible instead of being guessed or hidden.
+            </p>
+          </div>
+          <ul className="space-y-2.5">
+            {unmatchedPartItems.map((item) => {
+              const bundle = buildProductBuyBundle(
+                {
+                  brand: "",
+                  name: item.description,
+                  oemPartNumber: item.oemPartNumber,
+                  year: estimate.vehicle.year,
+                  make: estimate.vehicle.make,
+                  model: estimate.vehicle.model,
+                  engine: estimate.vehicle.engine,
+                  amazonAsin: item.amazonAsin,
+                  ebayItemId: item.ebayItemId,
+                },
+                item.retailerPrice ?? Math.max(0.01, item.mechanicPrice * 0.55)
+              );
+              const directListing =
+                item.retailerUrl && item.retailerName && item.retailerPrice
+                  ? {
+                      id: item.retailerName.toLowerCase(),
+                      label: item.retailerName,
+                      hint: "Verified exact product listing",
+                      url: item.retailerUrl,
+                      isProductPage: true,
+                      estimatedPrice: item.retailerPrice,
+                    }
+                  : null;
+
+              return (
+                <li
+                  key={item.id}
+                  className="flex flex-col gap-3 rounded-xl border bg-card px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold">{item.description}</p>
+                    {!manualSearch && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Shop charged {formatCurrency(item.mechanicPrice)}
+                      </p>
+                    )}
+                    <p className="mt-1 text-[11px] font-medium text-amber-700">
+                      No safe catalog match yet — confirm fitment at the retailer.
+                    </p>
+                  </div>
+                  <PartBuyAction
+                    bundle={bundle}
+                    directListing={directListing}
+                    className="sm:w-auto sm:shrink-0"
+                    fitment={{
+                      year: estimate.vehicle.year,
+                      make: estimate.vehicle.make,
+                      model: estimate.vehicle.model,
+                      vin: estimate.vehicle.vin,
+                      partName: item.productTitle ?? item.description,
+                    }}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <EstimateReviewForm
         estimateId={estimate.id}
