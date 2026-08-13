@@ -23,8 +23,8 @@ const listings: Array<{
       retailerName: "Amazon",
       retailerPrice: 39.49,
       amazonAsin: "B0BHL39JV9",
-      productTitle: "Bosch Blue Ceramic Front Brake Pad Set with Hardware",
-      fitmentNote: "Confirmed year, model, and engine-family fit",
+      productTitle: "Bosch BE2076H Blue Ceramic Front Brake Pad Set with Hardware",
+      fitmentNote: "Fits 2021 Lexus ES 350 front brakes · Amazon must show BE2076H — do not select another variation",
     },
   },
   {
@@ -51,7 +51,7 @@ const listings: Array<{
       retailerUrl:
         "https://www.autopartsprime.com/lexus/alternator-assembly-with-regulator/oe-270600p440",
       productTitle: "Genuine Lexus Alternator Assembly 27060-0P440",
-      fitmentNote: "Exact OEM number match · 3.5L V6",
+      fitmentNote: "Exact Lexus OEM 27060-0P440 · 3.5L V6 — confirm this number before buying",
     },
   },
 ];
