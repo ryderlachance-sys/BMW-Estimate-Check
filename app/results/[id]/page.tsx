@@ -265,19 +265,22 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
       </p>
 
       <div className="mt-6 rounded-3xl bg-primary px-6 py-8 text-center text-primary-foreground">
-        <p className="text-sm font-medium uppercase tracking-wide opacity-90">You can save</p>
+        <p className="text-sm font-medium uppercase tracking-wide opacity-90">
+          Estimated parts savings
+        </p>
         <p className="mt-1 text-5xl font-extrabold tabular-nums tracking-tight sm:text-6xl">
           {formatCurrency(Math.max(0, totalSavings))}
         </p>
         <p className="mt-3 text-sm opacity-90">
-          Shop wants {formatCurrency(shopParts)} for these parts → catalog reference about{" "}
+          Shop wants {formatCurrency(shopParts)} for these parts → catalog estimate about{" "}
           {formatCurrency(onlineParts)}
         </p>
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        These are catalog reference prices, not live retailer quotes. Confirm the current
-        price and exact fitment on the retailer before buying.
+        Catalog estimates are not live Amazon or eBay prices. A retailer button opens one
+        exact product only when that listing has been verified; otherwise it opens matching
+        options so you can confirm the current price and fitment.
       </p>
 
       <ul className="mt-6 space-y-2.5">
@@ -335,11 +338,11 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                               {formatCurrency(primary.mechanicPrice)}
                             </span>
                             <span className="text-sm font-extrabold tabular-nums text-primary">
-                              {formatCurrency(primary.ourPrice)}
+                              Catalog estimate {formatCurrency(primary.ourPrice)}
                             </span>
                             {primary.savings > 0 && (
                               <span className="text-[11px] font-semibold text-success">
-                                Save {formatCurrency(primary.savings)}
+                                Est. save {formatCurrency(primary.savings)}
                               </span>
                             )}
                           </div>

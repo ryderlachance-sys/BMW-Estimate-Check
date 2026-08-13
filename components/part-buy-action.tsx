@@ -45,8 +45,8 @@ export function PartBuyAction({
         className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.99]"
       >
         {recommended.isProductPage
-          ? `View recommended part on ${recommended.label}`
-          : `See matching options on ${recommended.label}`}
+          ? `Open exact part on ${recommended.label}`
+          : `Compare matches on ${recommended.label}`}
         <ExternalLink className="size-3.5 opacity-80" />
       </button>
 

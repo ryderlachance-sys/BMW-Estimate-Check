@@ -278,7 +278,10 @@ export type ProductBuyBundle = {
   rockAuto: PricedAffiliateLink;
 };
 
-/** Amazon + eBay primary CTAs; RockAuto priced for the secondary wholesaler link. */
+/**
+ * Build retailer destinations. estimatedPrice is a catalog-relative planning
+ * estimate only; it must never be presented as a live retailer quote.
+ */
 export function buildProductBuyBundle(
   q: PartAffiliateQuery,
   catalogPrice: number
