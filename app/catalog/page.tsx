@@ -29,9 +29,9 @@ const stockBadge: Record<string, { label: string; variant: "success" | "warning"
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; model?: string; year?: string; brand?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; make?: string; model?: string; year?: string; brand?: string; category?: string }>;
 }) {
-  const { q, model, year, brand, category } = await searchParams;
+  const { q, make, model, year, brand, category } = await searchParams;
 
   const where: Prisma.CatalogPartWhereInput = {
     AND: [
@@ -45,6 +45,7 @@ export default async function CatalogPage({
             ],
           }
         : {},
+      make ? { compatibleMakes: { has: make } } : {},
       model ? { compatibleModels: { has: model } } : {},
       year && !Number.isNaN(Number(year)) ? { compatibleYears: { has: Number(year) } } : {},
       brand ? { brand } : {},
@@ -55,11 +56,18 @@ export default async function CatalogPage({
   const [parts, allParts] = await Promise.all([
     db.catalogPart.findMany({ where, orderBy: [{ category: "asc" }, { price: "desc" }] }),
     db.catalogPart.findMany({
-      select: { brand: true, category: true, compatibleModels: true, compatibleYears: true },
+      select: { brand: true, category: true, compatibleMakes: true, compatibleModels: true, compatibleYears: true },
     }),
   ]);
 
-  const models = [...new Set(allParts.flatMap((p) => p.compatibleModels))].sort();
+  const makes = [...new Set(allParts.flatMap((p) => p.compatibleMakes))].sort();
+  const models = [
+    ...new Set(
+      allParts
+        .filter((p) => !make || p.compatibleMakes.includes(make))
+        .flatMap((p) => p.compatibleModels)
+    ),
+  ].sort();
   const brands = [...new Set(allParts.map((p) => p.brand))].sort();
   const categories = [...new Set(allParts.map((p) => p.category))].sort();
   const years = [...new Set(allParts.flatMap((p) => p.compatibleYears))].sort((a, b) => b - a);
@@ -112,7 +120,7 @@ export default async function CatalogPage({
       </div>
 
       <div className="mt-8">
-        <CatalogFilters models={models} brands={brands} categories={categories} years={years} />
+        <CatalogFilters makes={makes} models={models} brands={brands} categories={categories} years={years} />
       </div>
 
       {parts.length === 0 ? (
@@ -146,7 +154,7 @@ export default async function CatalogPage({
                     {part.description}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Fits: {part.compatibleModels.join(", ")}
+                    Fits: {part.compatibleMakes.join(", ")} {part.compatibleModels.join(", ")}
                     {part.compatibleYears.length > 0 &&
                       ` (${Math.min(...part.compatibleYears)}–${Math.max(...part.compatibleYears)})`}
                   </p>

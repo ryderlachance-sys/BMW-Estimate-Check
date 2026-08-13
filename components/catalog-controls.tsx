@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
 export function CatalogFilters({
+  makes,
   models,
   brands,
   categories,
   years,
 }: {
+  makes: string[];
   models: string[];
   brands: string[];
   categories: string[];
@@ -31,7 +33,7 @@ export function CatalogFilters({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
       <div className="relative sm:col-span-2 lg:col-span-1">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -41,6 +43,22 @@ export function CatalogFilters({
           onChange={(e) => setParam("q", e.target.value)}
         />
       </div>
+      <Select
+        aria-label="Make"
+        value={searchParams.get("make") ?? ""}
+        onChange={(e) => {
+          const params = new URLSearchParams(searchParams.toString());
+          if (e.target.value) params.set("make", e.target.value);
+          else params.delete("make");
+          params.delete("model");
+          router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        }}
+      >
+        <option value="">All makes</option>
+        {makes.map((make) => (
+          <option key={make} value={make}>{make}</option>
+        ))}
+      </Select>
       <Select
         aria-label="Model"
         value={searchParams.get("model") ?? ""}
