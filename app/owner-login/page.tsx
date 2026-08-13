@@ -15,7 +15,7 @@ export default function OwnerLoginPage() {
           <ShieldCheck className="size-10 text-primary" />
           <h1 className="mt-5 text-2xl font-bold">Owner access</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            This area contains customer orders and private business information.
+            This area contains private estimate, click, and product analytics.
           </p>
           <form action={action} className="mt-6 space-y-4">
             <label className="block text-sm font-semibold" htmlFor="password">

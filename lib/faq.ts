@@ -1,34 +1,34 @@
 export const faqItems = [
   {
     q: "Which cars do you support?",
-    a: "Any make — BMW, Toyota, Honda, Ford, Chevy, and more. Upload your estimate and we'll read the year/make/model when it's printed. BMW still has the deepest catalog coverage.",
+    a: "Any make — BMW, Toyota, Honda, Ford, Chevrolet, Lexus, Jeep, and more. Upload the estimate or enter the vehicle and repair manually.",
   },
   {
-    q: "How accurate is the estimate parsing?",
-    a: "We extract parts, quantities, OEM part numbers, and totals from your estimate photo or PDF. Always double-check the matched lines before you buy.",
+    q: "How accurate is the estimate scanner?",
+    a: "It extracts parts, quantities, OEM numbers, and prices from photos, phone screenshots, PDFs, and pasted text. Every successful scan requires you to review and correct the vehicle and part lines before matching.",
+  },
+  {
+    q: "How do you prevent the wrong part?",
+    a: "You confirm the year, make, model, engine, VIN, and repair lines first. Exact-product wording appears only when a retailer product ID and fitment have been verified. Otherwise, the site clearly labels the link as a retailer search.",
   },
   {
     q: "Are these cheap knock-off parts?",
-    a: "No. We prioritize exact OEM and reputable OE-supplier listings. A buy button appears only after the retailer product has been verified.",
+    a: "We prioritize exact OEM and reputable OE-supplier brands when verified listings are available. You can review the product and fitment at the retailer before buying.",
   },
   {
     q: "Do you sell or ship the parts?",
-    a: "No. This site is free. You buy from the retailer we recommend. They ship to you. We may earn a small commission when you use those links — at no extra cost to you.",
+    a: "No. Engine Genie is free to use. You buy from the independent retailer, which handles payment, shipping, warranties, and returns. We may earn a commission at no extra cost to you.",
+  },
+  {
+    q: "What if I don't have an estimate?",
+    a: "Use the manual parts form. Enter the vehicle and the repairs or part names you need. A VIN or OEM part number gives the safest match.",
   },
   {
     q: "Do you install the parts?",
-    a: "We don't install parts. Most independent shops will install customer-supplied parts. You keep the labor relationship with your mechanic and save on the parts markup.",
+    a: "No. Ask your repair shop whether it accepts customer-supplied parts before purchasing anything.",
   },
   {
-    q: "How do you know which part fits?",
-    a: "When the estimate includes a VIN, we decode it with NHTSA for exact year/make/model/engine. Before you buy, we remind you to verify fitment on the retailer's page — mid-year changes and trim variants are common.",
-  },
-  {
-    q: "OEM/Premium vs Budget — what's the difference?",
-    a: "OEM/Premium prefers genuine or OE-supplier brands (Bosch, Denso, ACDelco, Lemförder, etc.). Budget shows a cheaper aftermarket option when we have one. You choose; we never claim a part is 100% guaranteed.",
-  },
-  {
-    q: "Is my estimate data private?",
-    a: "Yes. Estimates are stored privately and are never shared with shops or third parties.",
+    q: "Is my estimate private?",
+    a: "Estimate files and results are private to your browser session and the owner dashboard. Retailers only receive information after you choose to open their website.",
   },
 ];

@@ -6,7 +6,6 @@ import {
   ArrowRight,
   BadgeDollarSign,
   ExternalLink,
-  FileScan,
   ShieldCheck,
   Sparkles,
   Star,
@@ -42,7 +41,7 @@ export function Hero() {
           <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0}>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium text-zinc-300">
               <Sparkles className="size-3.5 text-[#4da3dd]" />
-              Instant estimate analysis for any car
+              Free parts comparison for any car
             </span>
           </motion.div>
           <motion.h1
@@ -52,9 +51,9 @@ export function Hero() {
             custom={1}
             className="mt-6 text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl"
           >
-            Stop Overpaying for{" "}
+            Upload Your Estimate.{" "}
             <span className="bg-gradient-to-r from-[#4da3dd] to-[#0066B1] bg-clip-text text-transparent">
-              Car Repairs
+              Find Cheaper Parts.
             </span>
           </motion.h1>
           <motion.p
@@ -65,8 +64,9 @@ export function Hero() {
             className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-400"
           >
             Upload your mechanic&apos;s estimate — BMW, Toyota, Honda, Ford, or anything else.
-            We match the parts to online prices and show how much you can save, then you buy
-            from verified retailer listings when available. Free to use; retailers handle checkout and shipping.
+            Take a photo or upload the PDF. Confirm the car and parts we read, see the shop&apos;s
+            markup, and open a matching product at a trusted retailer. No estimate? Enter the
+            parts yourself. Retailers handle payment and shipping.
           </motion.p>
           <motion.div
             variants={fadeUp}
@@ -78,8 +78,13 @@ export function Hero() {
             <Link href="/upload">
               <Button size="lg" className="w-full sm:w-auto">
                 <Upload className="size-5" />
-                Find cheaper parts
+                Check my estimate
                 <ArrowRight className="size-5" />
+              </Button>
+            </Link>
+            <Link href="/upload#manual-parts">
+              <Button size="lg" variant="outline" className="w-full border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white sm:w-auto">
+                I don&apos;t have an estimate
               </Button>
             </Link>
           </motion.div>
@@ -91,10 +96,10 @@ export function Hero() {
             className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-zinc-400"
           >
             <span className="flex items-center gap-2">
-              <ShieldCheck className="size-4 text-[#4da3dd]" /> OEM &amp; OE-supplier parts
+              <ShieldCheck className="size-4 text-[#4da3dd]" /> You confirm the vehicle first
             </span>
             <span className="flex items-center gap-2">
-              <Star className="size-4 text-[#4da3dd]" /> Parts-only comparisons
+              <Star className="size-4 text-[#4da3dd]" /> No card required
             </span>
             <span className="flex items-center gap-2">
               <BadgeDollarSign className="size-4 text-[#4da3dd]" /> Free — buy at retailers
@@ -169,23 +174,23 @@ function SavingsExampleCard() {
 const steps = [
   {
     icon: Upload,
-    title: "Upload your estimate",
-    body: "Snap a photo or upload the PDF your shop gave you. We read the year, model, and parts off the estimate.",
+    title: "Upload or enter parts",
+    body: "Snap a photo, upload a PDF or screenshot, paste the text, or enter a repair manually.",
   },
   {
-    icon: FileScan,
-    title: "We read every line",
-    body: "Parts, quantities, OEM part numbers, and the quote total are extracted automatically.",
+    icon: ShieldCheck,
+    title: "Confirm what we found",
+    body: "Review the vehicle, engine, VIN, part names, quantities, prices, and OEM numbers before matching.",
   },
   {
     icon: BadgeDollarSign,
-    title: "See verified prices",
-    body: "We compare the shop's parts charge with exact retailer listings where available.",
+    title: "See the real comparison",
+    body: "Compare the shop's parts charge with a current exact retailer listing when one can be verified.",
   },
   {
     icon: ExternalLink,
     title: "Buy at a retailer",
-    body: "Open the exact verified product page. The retailer handles payment, returns, and shipping.",
+    body: "Open the product at the retailer. The retailer handles payment, delivery, warranties, and returns.",
   },
 ];
 
@@ -201,7 +206,7 @@ export function HowItWorks() {
       >
         <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">How it works</h2>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          From a shop estimate to verified retailer options in four clear steps.
+          Four clear steps. No account setup, checkout, or fulfillment on Engine Genie.
         </p>
       </motion.div>
       <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

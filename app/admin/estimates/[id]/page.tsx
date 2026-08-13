@@ -45,7 +45,7 @@ export default async function AdminEstimateDetailPage({
       <Card>
         <CardHeader>
           <CardTitle>
-            Estimate — {estimate.vehicle.year} BMW {estimate.vehicle.model}
+            Estimate — {estimate.vehicle.year} {estimate.vehicle.make} {estimate.vehicle.model}
           </CardTitle>
           <CardDescription>
             {estimate.user.email} · {formatDate(estimate.createdAt)} ·{" "}

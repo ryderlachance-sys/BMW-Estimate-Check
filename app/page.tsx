@@ -3,9 +3,9 @@ import { Hero, HowItWorks, TrustBar, Faq, FinalCta } from "@/components/landing"
 import { faqItems } from "@/lib/faq";
 
 export const metadata: Metadata = {
-  title: "Stop Overpaying for Car Repairs | Engine Genie",
+  title: "Compare Mechanic Parts Prices | Engine Genie",
   description:
-    "Upload any mechanic estimate and compare it against catalog reference prices before checking current retailer offers.",
+    "Upload a mechanic estimate, confirm the vehicle and repair parts, and compare the shop's parts charges with compatible retailer listings.",
   alternates: { canonical: "/" },
 };
 

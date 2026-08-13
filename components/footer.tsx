@@ -1,11 +1,10 @@
 import Link from "next/link";
+import { repairGuides } from "@/lib/repairs";
 
-const repairLinks = [
-  { href: "/repairs/bmw-328i-control-arm-replacement-cost", label: "328i Control Arm Cost" },
-  { href: "/repairs/bmw-335i-water-pump-replacement-cost", label: "335i Water Pump Cost" },
-  { href: "/repairs/bmw-x5-suspension-repair-cost", label: "X5 Suspension Cost" },
-  { href: "/repairs/bmw-n54-valve-cover-gasket-cost", label: "N54 Valve Cover Gasket Cost" },
-];
+const repairLinks = repairGuides.slice(0, 6).map((guide) => ({
+  href: `/repairs/${guide.slug}`,
+  label: guide.heading.replace("Replacement Cost", "Cost"),
+}));
 
 export function Footer() {
   return (

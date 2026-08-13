@@ -8,22 +8,22 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: {
-    default: "Engine Genie — Stop Overpaying for Car Repairs",
+    default: "Engine Genie — Compare Mechanic Parts Prices",
     template: "%s | Engine Genie",
   },
   description:
-    "Upload any mechanic estimate. Compare the quote with catalog reference prices, then verify current price and fitment with the retailer.",
+    "Upload a mechanic estimate, confirm the vehicle and repair parts, and compare shop charges with compatible retailer listings.",
   openGraph: {
     type: "website",
     siteName: "Engine Genie",
-    title: "Engine Genie — Stop Overpaying for Car Repairs",
-    description: "Estimate analysis for any car with catalog price comparisons and retailer links.",
+    title: "Engine Genie — Compare Mechanic Parts Prices",
+    description: "Upload an estimate, confirm the car and parts, and compare retailer prices before buying.",
     url: appUrl,
   },
   twitter: {
     card: "summary_large_image",
     title: "Engine Genie",
-    description: "Stop overpaying for repairs. Compare your quote with catalog reference prices.",
+    description: "Upload an estimate, confirm the car and parts, and compare retailer prices before buying.",
   },
 };
 

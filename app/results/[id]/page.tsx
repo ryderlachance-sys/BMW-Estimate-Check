@@ -15,6 +15,7 @@ import { CatalogPartImage } from "@/components/catalog-part-image";
 import { PasteEstimateFallback } from "@/components/paste-estimate-fallback";
 import { PartBuyAction } from "@/components/part-buy-action";
 import { VerifiedPartsCheckout } from "@/components/verified-parts-checkout";
+import { EstimateReviewForm } from "@/components/estimate-review-form";
 import { cleanPartDisplayName, buildProductBuyBundle } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
@@ -102,6 +103,44 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         <Car className="mx-auto size-10 text-primary" />
         <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Tell us your car</h1>
         <ConfirmVehicleForm estimateId={estimate.id} />
+      </div>
+    );
+  }
+
+  const reviewParts = estimate.items.map((item) => ({
+    id: item.id,
+    description: item.description,
+    quantity: item.quantity,
+    mechanicPrice: item.mechanicPrice,
+    oemPartNumber: item.oemPartNumber ?? "",
+  }));
+  const reviewVehicle = {
+    year: estimate.vehicle.year,
+    make: estimate.vehicle.make,
+    model: estimate.vehicle.model,
+    engine: estimate.vehicle.engine,
+    vin: estimate.vehicle.vin,
+  };
+
+  if (estimate.errorMessage === "CONFIRM_VEHICLE") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
+        <div className="rounded-3xl bg-primary px-6 py-7 text-primary-foreground">
+          <p className="text-sm font-bold uppercase tracking-wide opacity-85">One quick check</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Is this your vehicle and repair?</h1>
+          <p className="mt-3 text-sm leading-relaxed opacity-90">
+            Confirm what we read before we look for exact products. Correcting a year, engine,
+            part name, or OEM number now prevents the wrong part from being recommended.
+          </p>
+        </div>
+        <div className="mt-5 rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
+          <EstimateReviewForm
+            estimateId={estimate.id}
+            vehicle={reviewVehicle}
+            initialParts={reviewParts}
+            required
+          />
+        </div>
       </div>
     );
   }
@@ -313,6 +352,11 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
               );
             })}
           </ul>}
+          <EstimateReviewForm
+            estimateId={estimate.id}
+            vehicle={reviewVehicle}
+            initialParts={reviewParts}
+          />
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <RetryParseButton estimateId={estimate.id} />
             <Link href="/upload">
@@ -462,6 +506,12 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           );
         })}
       </ul>
+
+      <EstimateReviewForm
+        estimateId={estimate.id}
+        vehicle={reviewVehicle}
+        initialParts={reviewParts}
+      />
 
       <div className="mt-10 text-center">
         <Link

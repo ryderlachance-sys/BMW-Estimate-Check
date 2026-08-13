@@ -14,6 +14,7 @@ import { scanEstimateKeywords } from "@/lib/ai/keyword-scanner";
 import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
 import { buildComparisons, normalizeOemNumber } from "@/lib/comparison";
 import { findVerifiedRetailerListing } from "@/lib/retailers/find-listing";
+import { enrichEstimateRetailerListings } from "@/lib/retailers/enrich-estimate";
 import { correctPartsOnlyPrices } from "@/lib/estimate-parts-price";
 import {
   decodeVin,
@@ -129,6 +130,90 @@ const CreateEstimateSchema = z.object({
 });
 
 export type CreateEstimateState = { error?: string } | null;
+
+const ReviewEstimateSchema = z.object({
+  year: z.coerce.number().int().min(1990).max(new Date().getFullYear() + 1),
+  make: z.string().trim().min(2).max(60),
+  model: z.string().trim().min(1).max(80),
+  engine: z.string().trim().max(80).optional(),
+  vin: z.string().trim().max(17).optional(),
+  parts: z.array(z.object({
+    id: z.string().min(1),
+    description: z.string().trim().min(2).max(240),
+    quantity: z.coerce.number().int().min(1).max(99),
+    mechanicPrice: z.coerce.number().min(0).max(100_000),
+    oemPartNumber: z.string().trim().max(80).optional(),
+  })).min(1).max(20),
+});
+
+export async function reviewEstimateDetails(
+  estimateId: string,
+  input: z.infer<typeof ReviewEstimateSchema>
+): Promise<{ error?: string }> {
+  const user = await ensureUser();
+  const estimate = await db.estimate.findUniqueOrThrow({
+    where: { id: estimateId },
+    include: { items: true },
+  });
+  if (estimate.userId !== user.id && !user.isAdmin) throw new Error("Forbidden");
+
+  const parsed = ReviewEstimateSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? "Check the vehicle and part details." };
+  }
+  const data = parsed.data;
+  const vin = data.vin?.replace(/[^A-HJ-NPR-Z0-9]/gi, "").toUpperCase() || null;
+  if (vin && vin.length !== 17) return { error: "VIN must be exactly 17 characters." };
+
+  const existingIds = new Set(estimate.items.map((item) => item.id));
+  const keptIds = new Set(data.parts.filter((part) => existingIds.has(part.id)).map((part) => part.id));
+  await db.$transaction(async (tx) => {
+    await tx.vehicle.update({
+      where: { id: estimate.vehicleId },
+      data: {
+        year: data.year,
+        make: normalizeMake(data.make) ?? data.make,
+        model: data.model,
+        engine: data.engine || null,
+        vin,
+      },
+    });
+    await tx.comparison.deleteMany({ where: { estimateId } });
+    await tx.estimateItem.deleteMany({
+      where: { estimateId, id: { notIn: [...keptIds] } },
+    });
+    for (const part of data.parts) {
+      const values = {
+        description: part.description,
+        quantity: part.quantity,
+        mechanicPrice: part.mechanicPrice,
+        oemPartNumber: normalizeOemNumber(part.oemPartNumber),
+        amazonAsin: null,
+        ebayItemId: null,
+        retailerName: null,
+        retailerPrice: null,
+        productTitle: null,
+        retailerUrl: null,
+        retailerCheckedAt: null,
+        fitmentNote: null,
+      };
+      if (existingIds.has(part.id)) {
+        await tx.estimateItem.update({ where: { id: part.id }, data: values });
+      } else {
+        await tx.estimateItem.create({ data: { estimateId, ...values } });
+      }
+    }
+    await tx.estimate.update({
+      where: { id: estimateId },
+      data: { status: "PARSED", errorMessage: null },
+    });
+  });
+
+  await enrichEstimateRetailerListings(estimateId);
+  await buildComparisons(estimateId);
+  revalidatePath(`/results/${estimateId}`);
+  return {};
+}
 
 const ManualPartsSchema = z.object({
   year: z.coerce.number().int().min(1990).max(new Date().getFullYear() + 1),
@@ -481,7 +566,7 @@ export async function processEstimate(estimateId: string): Promise<void> {
           ? "NEED_VEHICLE"
           : result.parts.length === 0
             ? "NO_PARTS"
-            : null,
+            : "CONFIRM_VEHICLE",
       },
     });
 
@@ -649,6 +734,7 @@ export async function confirmEstimateVehicle(
   });
 
   if (estimate.items.length > 0) {
+    await enrichEstimateRetailerListings(estimateId);
     await buildComparisons(estimateId);
   }
 
