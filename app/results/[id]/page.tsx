@@ -15,6 +15,7 @@ import { ConfirmVehicleForm } from "@/components/confirm-vehicle-form";
 import { CatalogPartImage } from "@/components/catalog-part-image";
 import { PasteEstimateFallback } from "@/components/paste-estimate-fallback";
 import { PartBuyAction } from "@/components/part-buy-action";
+import { VerifiedPartsCheckout } from "@/components/verified-parts-checkout";
 import { cleanPartDisplayName, buildProductBuyBundle } from "@/lib/affiliates";
 
 export const dynamic = "force-dynamic";
@@ -170,6 +171,33 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         )
       );
       const verifiedSavings = round2(Math.max(0, verifiedShop - verifiedOnline));
+      const checkoutItems = unmatchedItems.flatMap((item) => {
+        const query = {
+          brand: "",
+          name: item.description,
+          oemPartNumber: item.oemPartNumber,
+          year: estimate.vehicle.year,
+          make: estimate.vehicle.make,
+          model: estimate.vehicle.model,
+          engine: estimate.vehicle.engine,
+          amazonAsin: item.amazonAsin,
+          ebayItemId: item.ebayItemId,
+        };
+        const bundle = buildProductBuyBundle(query, item.retailerPrice ?? 0.01);
+        const link = item.retailerUrl && item.retailerName
+          ? { label: item.retailerName, url: item.retailerUrl }
+          : [bundle.amazon, bundle.ebay].find((candidate) => candidate.isProductPage);
+        return item.retailerPrice && link
+          ? [{
+              id: item.id,
+              title: item.productTitle ?? item.description,
+              retailer: link.label,
+              price: item.retailerPrice,
+              url: link.url,
+              vehicle: carLabel,
+            }]
+          : [];
+      });
       return (
         <div className="mx-auto max-w-xl px-4 py-10 sm:px-6 sm:py-14">
           <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
@@ -190,6 +218,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 : "We read these lines from your estimate. Exact retailer matches are being verified."}
             </p>
           </div>
+          <VerifiedPartsCheckout items={checkoutItems} />
           <ul className="mt-6 space-y-2.5">
             {unmatchedItems.map((item) => {
               const query = {
