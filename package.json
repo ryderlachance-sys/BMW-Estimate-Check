@@ -13,8 +13,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node --import tsx prisma/seed.ts",
-    "test:flows": "tsx --conditions=react-server scripts/test-flows.ts",
-    "test:launch": "tsx scripts/launch-checks.ts",
+    "test:launch": "node scripts/run-tsx.cjs scripts/launch-checks.ts",
+    "test:estimates": "node scripts/run-tsx.cjs scripts/test-estimate-formats.ts",
     "typecheck": "tsc --noEmit --incremental false"
   },
   "prisma": {
@@ -35,7 +35,6 @@
     "react-dom": "^19.0.0",
     "server-only": "^0.0.1",
     "sharp": "^0.35.3",
-    "stripe": "^22.3.2",
     "tailwind-merge": "^3.0.2",
     "tesseract.js": "^7.0.0",
     "zod": "^3.24.2"

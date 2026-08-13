@@ -1,4 +1,3 @@
-import "server-only";
 import { ParsedEstimateSchema, type ParsedEstimate } from "./schema";
 import { repairOcrText, sanitizeGrandTotal } from "@/lib/ocr/repair";
 import {

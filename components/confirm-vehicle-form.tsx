@@ -15,7 +15,7 @@ const YEARS = Array.from({ length: 20 }, (_, i) => new Date().getFullYear() + 1 
 export function ConfirmVehicleForm({ estimateId }: { estimateId: string }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [make, setMake] = useState("BMW");
+  const [make, setMake] = useState("");
   const router = useRouter();
 
   const models = useMemo(() => MODELS_BY_MAKE[make] ?? [], [make]);
@@ -91,6 +91,9 @@ export function ConfirmVehicleForm({ estimateId }: { estimateId: string }) {
           className="mt-1.5"
           onChange={(e) => setMake(e.target.value)}
         >
+          <option value="" disabled>
+            Select make
+          </option>
           {MAKES.map((m) => (
             <option key={m} value={m}>
               {m}

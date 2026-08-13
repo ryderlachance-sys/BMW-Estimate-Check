@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, FileText, Package, ShieldCheck, Users, Warehouse } from "lucide-react";
+import { BarChart3, FileText, ShieldCheck, Users, Warehouse } from "lucide-react";
 import { getAdminUser } from "@/lib/auth";
 import { adminLogout } from "@/app/actions/auth";
 
@@ -14,7 +14,6 @@ export const metadata: Metadata = {
 
 const nav = [
   { href: "/admin", label: "Analytics", icon: BarChart3 },
-  { href: "/admin/orders", label: "Orders", icon: Package },
   { href: "/admin/estimates", label: "Estimates", icon: FileText },
   { href: "/admin/inventory", label: "Inventory", icon: Warehouse },
   { href: "/admin/users", label: "Users", icon: Users },

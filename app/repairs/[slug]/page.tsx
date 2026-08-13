@@ -45,7 +45,7 @@ export default async function RepairGuidePage({
     "@type": "Article",
     headline: guide.heading,
     description: guide.metaDescription,
-    author: { "@type": "Organization", name: "BMW Estimate Check" },
+    author: { "@type": "Organization", name: "Engine Genie" },
     about: {
       "@type": "Service",
       name: guide.heading,
@@ -66,12 +66,16 @@ export default async function RepairGuidePage({
       />
 
       <p className="text-sm font-semibold uppercase tracking-wide text-primary">
-        BMW Repair Cost Guide
+        {guide.make} Repair Cost Guide
       </p>
       <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
         {guide.heading}
       </h1>
       <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{guide.intro}</p>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+        Planning ranges for U.S. repairs, updated for 2026. Actual prices vary by model year,
+        engine, location, taxes, shop rate, and related damage. Confirm the diagnosis and fitment.
+      </p>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-3">
         <Card>
@@ -147,6 +151,7 @@ export default async function RepairGuidePage({
         <ul className="mt-4 space-y-2">
           {repairGuides
             .filter((g) => g.slug !== guide.slug)
+            .slice(0, 7)
             .map((g) => (
               <li key={g.slug}>
                 <Link href={`/repairs/${g.slug}`} className="text-primary hover:underline">

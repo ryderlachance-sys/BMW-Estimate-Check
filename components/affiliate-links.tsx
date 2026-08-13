@@ -114,7 +114,6 @@ export function FitmentInterstitial({
           <button
             type="button"
             onClick={() => {
-              trackRetailerClick(link, fitment);
               onClose();
             }}
             className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
@@ -162,7 +161,10 @@ export function FitmentInterstitial({
             target="_blank"
             rel="noopener noreferrer sponsored"
             className="inline-flex flex-1"
-            onClick={onClose}
+            onClick={() => {
+              trackRetailerClick(link, fitment);
+              onClose();
+            }}
           >
             <Button type="button" className="h-11 w-full gap-1.5 font-bold">
               {exactProduct ? `Continue to ${link.label}` : `See options on ${link.label}`}

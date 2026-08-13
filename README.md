@@ -1,171 +1,99 @@
 # Engine Genie
 
-Engine Genie analyzes repair estimates for many vehicle makes, compares quoted
-part charges with catalog reference prices, and provides retailer or controlled
-on-site ordering flows.
+Engine Genie is an affiliate car-parts comparison site. A visitor uploads a
+repair estimate (photo, screenshot, or PDF), confirms the detected vehicle and
+part lines, and opens compatible products at independent retailers. Retailers
+collect payment, ship the order, and handle returns. Engine Genie may earn a
+commission from qualifying purchases.
 
-> Production safety: on-site card payments remain disabled until an authorized
-> supplier workflow is configured and `FULFILLMENT_LIVE_ENABLED=true`. See
-> [docs/SUPPLIER-LAUNCH.md](docs/SUPPLIER-LAUNCH.md).
+## What works
 
-Stop overpaying for BMW repairs. Upload a mechanic estimate (PDF or photo),
-let the app extract every part and labor line, compare it against OEM and
-premium-aftermarket part prices, and order the parts.
+- Image, screenshot, PDF, and pasted-text estimate input
+- Optional OpenAI vision parsing with local OCR/keyword fallbacks
+- Manual vehicle and parts entry when there is no estimate
+- Required vehicle/parts review before product recommendations
+- Editable year, make, model, engine, VIN, part, quantity, shop price, and OEM number
+- Catalog matching by OEM number, vehicle compatibility, and part description
+- Direct Amazon/eBay product links when a verified product ID exists
+- Automatic eBay exact-product, live-price, and fitment matching when Browse API access is configured
+- Affiliate click tracking and an owner analytics dashboard
+- Repair-cost SEO guides for multiple vehicle makes
 
-**Runs locally for free.** Checkout works in demo mode out of the box; add
-free Stripe test keys when you want real (or test) card payments.
+The app does not collect card payments or fulfill parts. It does not guess a
+specific product when retailer data cannot verify fitment; it shows a clearly
+labeled retailer search instead.
 
-## Quick start (nothing to sign up for)
+## Local setup
 
 ```bash
 npm install
-npm run db:local        # terminal 1 — free embedded PostgreSQL, keep running
-npx prisma migrate dev  # terminal 2 — creates tables
-npm run db:seed         #             loads 31 BMW parts + demo vehicles
-npm run dev             #             starts the site
+npm run db:local
+npx prisma migrate dev
+npm run db:seed
+npm run dev
 ```
 
-Open http://localhost:3000. That's it — everything works:
+Open `http://localhost:3000`.
 
-- No sign-in: you're automatically the owner (and admin) of your local install.
-- Estimate uploads are saved to `public/uploads/` on your own disk.
-- Estimate parsing is built in and free: text PDFs are parsed directly, and
-  photos/screenshots are read with local OCR (tesseract.js) — no AI account
-  needed for either.
-- Checkout collects home or Mechanic Delivery details. With Stripe keys set,
-  customers pay by card on Stripe's secure page. Without keys, orders complete
-  in demo mode (no charge) so you can still test the full flow.
+## Environment variables
 
-## Features
+Copy `.env.example` to `.env`.
 
-- **Estimate parsing** — extracts parts, quantities, OEM part numbers, labor,
-  and totals from uploaded estimates, validated with Zod.
-- **Comparison engine** — exact OEM part-number matching first, then semantic
-  description matching filtered by BMW model/year fitment, with brand-quality
-  tie-breaking (Genuine BMW → OE suppliers → aftermarket).
-- **Savings display** — dollar savings, percentage savings, total project
-  savings, and an estimated fair-labor range.
-- **Affiliate buy links** — every matched part links to Amazon, eBay, RockAuto,
-  and FCP Euro so visitors can buy cheaper parts online (your commission when
-  affiliate IDs are set in `.env`).
-- **Searchable parts catalog** — filter by model, year, brand, and category.
-- **Mechanic Delivery** — first-class checkout choice: ship home or ship
-  directly to your shop, with appointment date, delivery ETA warnings,
-  favorite mechanics in the Garage, order tracking, and local email notices.
-- **Cart + checkout** — quantity controls, shipping estimate, local checkout
-  with home or mechanic destination.
-- **Order management** — statuses `PENDING → PAID → FULFILLING → SHIPPED →
-  DELIVERED` (or `CANCELLED`) for manual fulfillment.
-- **Admin panel** (`/admin`) — analytics (revenue, average savings, top BMW
-  models), order status management, CSV export, inventory price/stock editing,
-  estimate review with AI-match override, and user list.
-- **SEO** — dynamic metadata, Open Graph tags, JSON-LD, sitemap/robots, and
-  four repair-cost landing pages.
+Required:
 
-## Optional: AI parsing (free options)
+- `DATABASE_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `AUTH_SECRET` in production
+- `ADMIN_PASSWORD` for `/owner-login`
 
-The built-in parser handles text PDFs directly and reads photos/screenshots
-with free local OCR — no AI needed for anything. If you want potentially higher
-accuracy on messy handwritten or low-quality photos, you can optionally plug in
-any OpenAI-compatible provider via `.env` — free options (exact values in
-`.env.example`):
+Estimate parsing:
 
-- **Google Gemini** — generous free tier, no credit card
-  ([aistudio.google.com/apikey](https://aistudio.google.com/apikey))
-- **Groq** — free tier with vision models
-  ([console.groq.com/keys](https://console.groq.com/keys))
-- **Ollama** — 100% local and free ([ollama.com](https://ollama.com))
+- Leave `OPENAI_API_KEY` empty to use local extraction only.
+- Set `OPENAI_API_KEY` and `OPENAI_MODEL` for image/text AI parsing.
 
-If an AI call fails at runtime, the app automatically falls back to the
-built-in parser (PDF text or OCR) instead of failing the estimate.
+Affiliate revenue:
 
-## Taking card payments (Stripe — free to start)
+- `NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG` tracks qualifying Amazon purchases.
+- `NEXT_PUBLIC_EBAY_CAMPAIGN_ID` tracks qualifying eBay purchases.
+- `NEXT_PUBLIC_FCP_EURO_CLICK_ID` enables an approved FCP Euro tracking link.
 
-1. Create a free Stripe account: [dashboard.stripe.com/register](https://dashboard.stripe.com/register)
-2. Open **Developers → API keys** (stay in **Test mode** first).
-3. Paste the **Secret key** (`sk_test_…`) into `.env` as `STRIPE_SECRET_KEY`.
-4. Restart `npm run dev`. Checkout buttons become **Pay with card** and send
-   customers to Stripe to enter their card.
-5. Test card: `4242 4242 4242 4242`, any future expiry, any CVC, any ZIP.
-6. When you're ready for real money, toggle Stripe to **Live mode**, put the
-   live secret key in `.env`, and finish Stripe's identity / bank payout setup.
+Automatic exact-product matching:
 
-**Do you have to pay money?** No monthly fee. Stripe only takes a cut when a
-payment succeeds (US cards typically **2.9% + $0.30**). Test mode charges $0.
+- `EBAY_CLIENT_ID`: eBay Production App ID
+- `EBAY_CLIENT_SECRET`: eBay Production Cert ID
 
-Optional webhook (so payment confirms even if the browser closes early):
+The eBay credentials stay server-side. They power Browse API searches and
+vehicle compatibility checks. Without them, eBay search links still work but
+the app cannot promise one exact listing or a live price.
+
+Amazon's affiliate tag does not provide catalog access. Amazon's official
+Creators API credentials can be integrated after the Associates account becomes
+eligible for API access.
+
+## How revenue works
+
+1. A visitor confirms their vehicle and repair parts.
+2. Engine Genie presents a verified retailer listing when available.
+3. The visitor opens the tagged retailer link and completes checkout there.
+4. The retailer attributes an eligible purchase to the affiliate account.
+
+There is no inventory, customer payment processing, or manual order fulfillment
+inside Engine Genie.
+
+## Verification
 
 ```bash
-# Install Stripe CLI, then:
-stripe listen --forward-to localhost:3000/api/webhooks/stripe
-# Put the whsec_… signing secret in STRIPE_WEBHOOK_SECRET
+npm run typecheck
+npm run build
+npm run test:launch
 ```
 
-The success page also confirms payment via `session_id` if the webhook isn't set.
+## Vercel deployment
 
-## How you make money
+1. Import the GitHub repository into Vercel.
+2. Add the production environment variables listed above.
+3. Point `DATABASE_URL` at PostgreSQL.
+4. Run `npx prisma migrate deploy` against that production database.
+5. Deploy. Git pushes to `main` trigger subsequent deployments.
 
-**Affiliate commissions** (no inventory) — sign up for
-   [Amazon Associates](https://affiliate-program.amazon.com/),
-   [eBay Partner Network](https://partnernetwork.ebay.com/), and/or FCP Euro’s
-   Impact program, put IDs in `.env`, and earn when shoppers buy through the
-   retailer buttons on results pages. Retailers collect payment and fulfill the
-   order.
-
-For automatic one-product links, live prices, and verified vehicle fitment,
-add an approved eBay Browse API Production App ID and Cert ID as
-`EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET`. Also set
-`NEXT_PUBLIC_EBAY_CAMPAIGN_ID` so returned product URLs earn affiliate
-commissions. Without retailer API credentials the app falls back to clearly
-labeled retailer searches rather than guessing an incompatible product.
-
-## Try the flow
-
-1. Go to **Check an Estimate** and upload a PDF, photo, or screenshot. If there
-   is no estimate, enter the vehicle and requested parts manually.
-2. Review the detected vehicle and part lines.
-3. Open the exact verified retailer product when available, confirm fitment,
-   and purchase from the retailer.
-
-## Project structure
-
-```
-app/
-  page.tsx                  Landing (hero, savings card, trust, FAQ)
-  upload/                   Vehicle form + estimate dropzone
-  results/[id]/             Parsed estimate + comparison + savings
-  catalog/                  Filterable parts catalog
-  cart/ checkout/           Cart, shipping form, confirmation
-  dashboard/                Orders, vehicles, estimate history
-  admin/                    Analytics, orders, estimates, inventory, users
-  repairs/[slug]/           SEO repair-cost guides
-  actions/                  Server actions (estimate, cart, checkout, admin)
-  api/upload/               Local file upload (saves to public/uploads)
-  api/admin/orders/export/  CSV export
-lib/
-  ai/                       Heuristic parser, optional AI parsing, PDF text extraction
-  affiliates.ts             Amazon / eBay / RockAuto / FCP Euro buy-link builder
-  comparison.ts             OEM/semantic matching engine + labor heuristic
-  auth.ts                   Local single-user mode (owner = admin)
-  db.ts, utils.ts
-prisma/
-  schema.prisma             Full data model
-  seed.ts                   31 realistic BMW parts + demo vehicles
-scripts/
-  dev-db.ts                 Embedded PostgreSQL (no install needed)
-```
-
-## Deploying (optional)
-
-The app deploys to Vercel: set `DATABASE_URL` to a hosted Postgres (Neon's
-free tier works) and `NEXT_PUBLIC_APP_URL` to your domain, then run
-`npx prisma migrate deploy` and `npm run db:seed` against that database.
-Note that local mode has no authentication — anyone who can reach the site is
-the owner — so a public deployment should stay behind something private (or
-re-add an auth provider) before sharing the URL.
-
-## Notes & disclaimers
-
-- Orders are stored for manual fulfillment — nothing is auto-purchased.
-- Labor estimates are informational, based on typical independent BMW shop rates.
-- Not affiliated with BMW AG. BMW is a registered trademark of BMW AG.
+Live site: <https://bmw-estimate-check.vercel.app>
