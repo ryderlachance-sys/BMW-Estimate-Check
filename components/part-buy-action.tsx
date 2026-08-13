@@ -19,20 +19,22 @@ export function PartBuyAction({
   bundle,
   fitment,
   className,
+  directListing,
 }: {
   bundle: ProductBuyBundle;
   fitment?: FitmentContext;
   className?: string;
+  directListing?: PricedAffiliateLink | null;
 }) {
   const [pending, setPending] = useState<PricedAffiliateLink | null>(null);
   const { amazon, ebay, rockAuto } = bundle;
 
   const recommended = useMemo(
-    () => [amazon, ebay].find((link) => link.isProductPage) ?? null,
-    [amazon, ebay]
+    () => directListing ?? [amazon, ebay].find((link) => link.isProductPage) ?? null,
+    [amazon, ebay, directListing]
   );
   const alternatives = [amazon, ebay, rockAuto].filter(
-    (link) => link.isProductPage && link.id !== recommended?.id
+    (link) => link.isProductPage && link.url !== recommended?.url
   );
 
   if (!recommended) {

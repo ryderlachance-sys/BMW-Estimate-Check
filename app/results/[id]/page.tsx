@@ -193,6 +193,17 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
               };
               const listingPrice = item.retailerPrice ?? item.mechanicPrice * 0.55;
               const bundle = buildProductBuyBundle(query, listingPrice);
+              const directListing =
+                item.retailerUrl && item.retailerName && item.retailerPrice
+                  ? {
+                      id: item.retailerName.toLowerCase(),
+                      label: item.retailerName,
+                      hint: "Verified exact product listing",
+                      url: item.retailerUrl,
+                      isProductPage: true,
+                      estimatedPrice: item.retailerPrice,
+                    }
+                  : null;
               const savings = item.retailerPrice
                 ? Math.max(0, item.mechanicPrice - item.retailerPrice)
                 : null;
@@ -210,7 +221,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                     </p>
                     {item.retailerPrice && (
                       <p className="mt-1 text-sm font-extrabold text-primary">
-                        Amazon {formatCurrency(item.retailerPrice)}
+                        {item.retailerName ?? "Online"} {formatCurrency(item.retailerPrice)}
                         {savings !== null && (
                           <span className="ml-2 text-xs font-semibold text-success">
                             Save {formatCurrency(savings)}
@@ -221,6 +232,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                   </div>
                   <PartBuyAction
                     bundle={bundle}
+                    directListing={directListing}
                     className="sm:w-auto sm:shrink-0"
                     fitment={{
                       year: estimate.vehicle.year,

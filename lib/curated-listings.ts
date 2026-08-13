@@ -1,7 +1,8 @@
 export type CuratedListing = {
-  retailerName: "Amazon";
+  retailerName: "Amazon" | "AutoPartsPrime";
   retailerPrice: number;
-  amazonAsin: string;
+  amazonAsin?: string;
+  retailerUrl?: string;
   productTitle: string;
 };
 
@@ -34,6 +35,19 @@ const listings: Array<{
       retailerPrice: 92.95,
       amazonAsin: "B09HZ459FG",
       productTitle: "TRQ Front Vented Brake Rotor Set",
+    },
+  },
+  {
+    make: "lexus",
+    model: /\bes\s*350\b/i,
+    years: [2019, 2024],
+    part: /alternator/i,
+    listing: {
+      retailerName: "AutoPartsPrime",
+      retailerPrice: 361.87,
+      retailerUrl:
+        "https://www.autopartsprime.com/lexus/alternator-assembly-with-regulator/oe-270600p440",
+      productTitle: "Genuine Lexus Alternator Assembly 27060-0P440",
     },
   },
 ];
