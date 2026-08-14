@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, ExternalLink, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { AffiliateDisclosure } from "@/components/affiliate-disclosure";
 
 export type VerifiedCheckoutItem = {
   id: string;
@@ -50,6 +51,7 @@ export function VerifiedPartsCheckout({ items }: { items: VerifiedCheckoutItem[]
         <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
           Open each exact product, add it to that retailer&apos;s cart, then return here for the next part.
         </p>
+        <AffiliateDisclosure className="mb-3" />
         <div className="space-y-2">
           {items.map((item) => {
             const complete = opened.includes(item.id);

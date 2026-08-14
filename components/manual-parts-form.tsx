@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { trackFunnelEvent } from "@/components/funnel-tracker";
 
 const YEARS = Array.from({ length: new Date().getFullYear() - 1989 }, (_, index) => new Date().getFullYear() - index);
 
@@ -17,7 +18,7 @@ export function ManualPartsForm() {
   const models = useMemo(() => MODELS_BY_MAKE[make] ?? [], [make]);
 
   return (
-    <form action={createManualPartsSearch} className="mt-5 grid gap-4 text-left sm:grid-cols-2">
+    <form action={createManualPartsSearch} onSubmit={() => trackFunnelEvent("MANUAL_SEARCH_STARTED")} className="mt-5 grid gap-4 text-left sm:grid-cols-2">
       <div>
         <Label htmlFor="manual-year">Year</Label>
         <Select id="manual-year" name="year" required defaultValue="" className="mt-1.5">

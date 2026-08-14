@@ -8,6 +8,7 @@ import {
 } from "@/components/affiliate-links";
 import type { ProductBuyBundle, PricedAffiliateLink } from "@/lib/affiliates";
 import { cn } from "@/lib/utils";
+import { AffiliateDisclosure } from "@/components/affiliate-disclosure";
 
 /**
  * One clear recommendation. A direct product CTA is shown only when the
@@ -53,6 +54,7 @@ export function PartBuyAction({
           Find this part on Amazon
           <ExternalLink className="size-3.5 opacity-80" />
         </button>
+        <AffiliateDisclosure className="mt-1.5 text-center" />
         <details className="mt-1.5 text-center">
           <summary className="cursor-pointer list-none text-[11px] font-semibold text-muted-foreground hover:text-foreground">
             Compare other stores
@@ -93,6 +95,7 @@ export function PartBuyAction({
         {`Buy exact part on ${recommended.label}`}
         <ExternalLink className="size-3.5 opacity-80" />
       </button>
+      <AffiliateDisclosure className="mt-1.5 text-center" />
 
       {alternatives.length > 0 && (
         <div className="mt-2 grid gap-1.5 rounded-xl border bg-background p-2">

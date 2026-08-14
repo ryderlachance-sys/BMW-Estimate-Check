@@ -5,11 +5,18 @@ import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/auth";
 import { round2 } from "@/lib/utils";
 import type { StockStatus } from "@prisma/client";
+import { setAiParsingEnabled } from "@/lib/ai/budget";
 
 async function requireAdmin() {
   const admin = await getAdminUser();
   if (!admin) throw new Error("Admin access required");
   return admin;
+}
+
+export async function toggleAiParsing(formData: FormData): Promise<void> {
+  await requireAdmin();
+  await setAiParsingEnabled(formData.get("enabled") === "true");
+  revalidatePath("/admin");
 }
 
 export async function updateCatalogPart(
