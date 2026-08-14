@@ -17,6 +17,9 @@ commission from qualifying purchases.
 - Direct Amazon/eBay product links when a verified product ID exists
 - Automatic eBay exact-product, live-price, and fitment matching when Browse API access is configured
 - Affiliate click tracking and an owner analytics dashboard
+- First-party conversion and ad-source tracking (UTM source, medium, and campaign)
+- Durable AI daily/monthly usage caps, a per-visitor cap, and an owner kill switch
+- Public sample results at `/sample-results`
 - Repair-cost SEO guides for multiple vehicle makes
 
 The app does not collect card payments or fulfill parts. It does not guess a
@@ -50,6 +53,8 @@ Estimate parsing:
 
 - Leave `OPENAI_API_KEY` empty to use local extraction only.
 - Set `OPENAI_API_KEY` and `OPENAI_MODEL` for image/text AI parsing.
+- `AI_PARSING_ENABLED=false` is an emergency environment-level kill switch.
+- `AI_PER_USER_DAILY_LIMIT`, `AI_DAILY_CALL_LIMIT`, and `AI_MONTHLY_CALL_LIMIT` cap usage. The owner dashboard can also turn AI on or off without breaking local parsing.
 
 Affiliate revenue:
 
@@ -95,5 +100,16 @@ npm run test:launch
 3. Point `DATABASE_URL` at PostgreSQL.
 4. Run `npx prisma migrate deploy` against that production database.
 5. Deploy. Git pushes to `main` trigger subsequent deployments.
+
+### Connect an Engine Genie domain
+
+The app is already domain-ready: canonical links, social metadata, robots, the
+sitemap, and the web-app manifest use `NEXT_PUBLIC_APP_URL`.
+
+1. Buy a domain you own (for example, `enginegenie.com`) from any registrar.
+2. In Vercel, open the project, then **Settings → Domains**, and add the domain.
+3. Add the DNS records Vercel shows at the registrar.
+4. Change `NEXT_PUBLIC_APP_URL` in Vercel to `https://your-domain.com` and redeploy.
+5. Keep the existing `vercel.app` address; Vercel will redirect it to the primary domain once configured.
 
 Live site: <https://bmw-estimate-check.vercel.app>

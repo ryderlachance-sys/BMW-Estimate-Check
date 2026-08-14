@@ -60,19 +60,19 @@ model User {
 }
 
 model Mechanic {
-  id             String   @id @default(cuid())
-  userId         String
-  shopName       String
-  contactPerson  String?
-  address        String
-  city           String
-  state          String
-  zip            String
-  phone          String
-  notes          String?
-  isFavorite     Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String
+  shopName      String
+  contactPerson String?
+  address       String
+  city          String
+  state         String
+  zip           String
+  phone         String
+  notes         String?
+  isFavorite    Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders Order[]
@@ -136,20 +136,20 @@ model Estimate {
 }
 
 model EstimateItem {
-  id            String  @id @default(cuid())
-  estimateId    String
-  description   String
-  quantity      Int     @default(1)
-  mechanicPrice Float
-  oemPartNumber String?
-  amazonAsin    String?
-  ebayItemId    String?
-  retailerName  String?
-  retailerPrice Float?
-  productTitle  String?
-  retailerUrl   String?
+  id                String    @id @default(cuid())
+  estimateId        String
+  description       String
+  quantity          Int       @default(1)
+  mechanicPrice     Float
+  oemPartNumber     String?
+  amazonAsin        String?
+  ebayItemId        String?
+  retailerName      String?
+  retailerPrice     Float?
+  productTitle      String?
+  retailerUrl       String?
   retailerCheckedAt DateTime?
-  fitmentNote   String?
+  fitmentNote       String?
 
   estimate    Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   comparisons Comparison[]
@@ -158,23 +158,23 @@ model EstimateItem {
 }
 
 model CatalogPart {
-  id               String      @id @default(cuid())
-  sku              String      @unique
-  brand            String
-  name             String
-  description      String      @db.Text
-  category         String      @default("General")
-  oemNumbers       String[]    @default([])
-  compatibleModels String[]    @default([])
-  compatibleYears  Int[]       @default([])
-  compatibleMakes  String[]    @default([])
-  price            Float
-  imageUrl         String?
-  amazonAsin       String?
-  ebayItemId       String?
+  id                String      @id @default(cuid())
+  sku               String      @unique
+  brand             String
+  name              String
+  description       String      @db.Text
+  category          String      @default("General")
+  oemNumbers        String[]    @default([])
+  compatibleModels  String[]    @default([])
+  compatibleYears   Int[]       @default([])
+  compatibleMakes   String[]    @default([])
+  price             Float
+  imageUrl          String?
+  amazonAsin        String?
+  ebayItemId        String?
   retailerCheckedAt DateTime?
-  stockStatus      StockStatus @default(IN_STOCK)
-  createdAt        DateTime    @default(now())
+  stockStatus       StockStatus @default(IN_STOCK)
+  createdAt         DateTime    @default(now())
 
   comparisons Comparison[]
   cartItems   CartItem[]
@@ -194,6 +194,45 @@ model OutboundClick {
 
   @@index([createdAt])
   @@index([retailer])
+}
+
+model FunnelEvent {
+  id         String   @id @default(cuid())
+  event      String
+  sessionId  String?
+  path       String?
+  estimateId String?
+  source     String?
+  medium     String?
+  campaign   String?
+  content    String?
+  term       String?
+  referrer   String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([estimateId])
+}
+
+model AiUsage {
+  id         String   @id @default(cuid())
+  userId     String?
+  estimateId String?
+  model      String
+  inputType  String
+  succeeded  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([estimateId])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 model Comparison {
@@ -236,39 +275,39 @@ model CartItem {
 }
 
 model Order {
-  id              String              @id @default(cuid())
-  userId          String
-  stripeSessionId String?             @unique
-  customerEmail   String?
-  subtotal        Float
-  shipping        Float               @default(0)
-  tax             Float               @default(0)
-  total           Float
-  status          OrderStatus         @default(PENDING)
+  id                  String              @id @default(cuid())
+  userId              String
+  stripeSessionId     String?             @unique
+  customerEmail       String?
+  subtotal            Float
+  shipping            Float               @default(0)
+  tax                 Float               @default(0)
+  total               Float
+  status              OrderStatus         @default(PENDING)
   shippingDestination ShippingDestination @default(HOME)
-  shippingName    String?
-  shippingAddress String?
-  shippingCity    String?
-  shippingState   String?
-  shippingZip     String?
-  shippingCountry String?
-  mechanicId      String?
-  mechanicShopName String?
-  mechanicContact  String?
-  mechanicPhone    String?
-  appointmentDate  DateTime?
-  appointmentTime  String?
-  repairNotes      String?            @db.Text
-  trackingNumber   String?
-  estimatedDelivery DateTime?
-  shippedAt        DateTime?
-  deliveredAt      DateTime?
-  createdAt       DateTime            @default(now())
+  shippingName        String?
+  shippingAddress     String?
+  shippingCity        String?
+  shippingState       String?
+  shippingZip         String?
+  shippingCountry     String?
+  mechanicId          String?
+  mechanicShopName    String?
+  mechanicContact     String?
+  mechanicPhone       String?
+  appointmentDate     DateTime?
+  appointmentTime     String?
+  repairNotes         String?             @db.Text
+  trackingNumber      String?
+  estimatedDelivery   DateTime?
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+  createdAt           DateTime            @default(now())
 
-  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mechanic Mechanic?            @relation(fields: [mechanicId], references: [id], onDelete: SetNull)
-  items    OrderItem[]
-  emails   EmailNotification[]
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mechanic    Mechanic?           @relation(fields: [mechanicId], references: [id], onDelete: SetNull)
+  items       OrderItem[]
+  emails      EmailNotification[]
   fulfillment FulfillmentJob?
 
   @@index([userId])
@@ -289,7 +328,9 @@ model OrderItem {
   @@index([orderId])
 }
 
-/** Created automatically when a card payment succeeds — tracks buying + shipping the parts. */
+/**
+ * Created automatically when a card payment succeeds — tracks buying + shipping the parts.
+ */
 model FulfillmentJob {
   id               String            @id @default(cuid())
   orderId          String            @unique

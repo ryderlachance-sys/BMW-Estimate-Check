@@ -4,6 +4,9 @@ import { formatCurrency, round2 } from "@/lib/utils";
 import { affiliateProgramsConfigured } from "@/lib/affiliates";
 import { hasEbayBrowseConfigured } from "@/lib/retailers/ebay";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { getAiBudgetStatus } from "@/lib/ai/budget";
+import { toggleAiParsing } from "@/app/actions/admin";
+import { Button } from "@/components/ui/button";
 
 function countBy(values: Array<string | null | undefined>, limit = 6) {
   const counts = new Map<string, number>();
@@ -25,13 +28,15 @@ export default async function AdminAnalyticsPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const [comparisonAgg, estimateCount, parsedEstimateCount, topModels, clickCount, recentClicks] = await Promise.all([
+  const [comparisonAgg, estimateCount, parsedEstimateCount, topModels, clickCount, recentClicks, recentEvents, aiBudget] = await Promise.all([
     db.comparison.aggregate({ _avg: { savings: true }, _sum: { savings: true }, _count: true }),
     db.estimate.count(),
     db.estimate.count({ where: { status: "PARSED" } }),
     db.vehicle.groupBy({ by: ["make", "model"], _count: { model: true }, orderBy: { _count: { model: "desc" } }, take: 8 }),
     db.outboundClick.count(),
     db.outboundClick.findMany({ where: { createdAt: { gte: thirtyDaysAgo } }, orderBy: { createdAt: "desc" }, take: 1000 }),
+    db.funnelEvent.findMany({ where: { createdAt: { gte: thirtyDaysAgo } }, select: { event: true, source: true } }),
+    getAiBudgetStatus(),
   ]);
 
   const exactClicks = recentClicks.filter((click) => isExactProductUrl(click.url));
@@ -40,6 +45,12 @@ export default async function AdminAnalyticsPage() {
   const topParts = countBy(recentClicks.map((click) => click.partName));
   const topVehicles = countBy(recentClicks.map((click) => click.vehicle));
   const clickPerEstimate = parsedEstimateCount > 0 ? clickCount / parsedEstimateCount : 0;
+  const eventCount = (event: string) => recentEvents.filter((row) => row.event === event).length;
+  const landingViews = eventCount("LANDING_VIEW");
+  const uploadStarts = eventCount("UPLOAD_STARTED") + eventCount("MANUAL_SEARCH_STARTED");
+  const parsedEvents = eventCount("ESTIMATE_PARSED");
+  const sourceRows = countBy(recentEvents.map((row) => row.source), 8);
+  const percent = (value: number, total: number) => total > 0 ? `${Math.round((value / total) * 100)}%` : "—";
 
   const stats = [
     { icon: Car, label: "Estimates analyzed", value: String(estimateCount), sub: `${parsedEstimateCount} completed` },
@@ -61,6 +72,51 @@ export default async function AdminAnalyticsPage() {
           <div className="rounded-xl border bg-background p-4"><p className="font-bold">eBay exact matching</p><p className={ebayBrowse ? "mt-1 text-green-700" : "mt-1 text-amber-700"}>{ebayBrowse ? "Browse API active" : "Developer credentials awaiting approval"}</p></div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Launch funnel (30 days)</CardTitle>
+            <CardDescription>Anonymous first-party events, including ad campaign tags.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            {[
+              ["Visitors", landingViews, "100%"],
+              ["Started", uploadStarts, percent(uploadStarts, landingViews)],
+              ["Parsed", parsedEvents, percent(parsedEvents, uploadStarts)],
+              ["Retailer clicks", recentClicks.length, percent(recentClicks.length, parsedEvents)],
+            ].map(([label, value, rate]) => (
+              <div key={String(label)} className="rounded-xl border bg-background p-3">
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="mt-1 text-2xl font-extrabold tabular-nums">{value}</p>
+                <p className="text-xs font-semibold text-primary">{rate}</p>
+              </div>
+            ))}
+            <div className="col-span-2 text-xs text-muted-foreground sm:col-span-4">
+              Sources: {sourceRows.length ? sourceRows.map(([source, count]) => `${source} (${count})`).join(" · ") : "No campaign traffic yet"}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={aiBudget.enabled ? "border-emerald-200" : "border-amber-200"}>
+          <CardHeader>
+            <CardTitle>AI spending guard</CardTitle>
+            <CardDescription>The free local parser takes over automatically when AI is off or reaches a limit.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="text-sm">
+              <p className="font-bold">{aiBudget.enabled ? "AI parsing is on" : "AI parsing is off"}</p>
+              <p className="mt-1 text-muted-foreground">Today: {aiBudget.today}/{aiBudget.limits.globalDaily} · Month: {aiBudget.month}/{aiBudget.limits.globalMonthly} · Per visitor: {aiBudget.limits.perUserDaily}/day</p>
+            </div>
+            <form action={toggleAiParsing}>
+              <input type="hidden" name="enabled" value={String(!aiBudget.enabled)} />
+              <Button type="submit" variant={aiBudget.enabled ? "outline" : "default"}>
+                Turn AI {aiBudget.enabled ? "off" : "on"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (

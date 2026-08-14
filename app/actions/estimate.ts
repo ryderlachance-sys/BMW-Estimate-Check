@@ -23,6 +23,8 @@ import {
   isTrustworthyVinDecode,
 } from "@/lib/vin";
 import { normalizeMake } from "@/lib/vehicles";
+import { recordFunnelEvent } from "@/lib/analytics";
+import { finishAiCall, reserveAiCall } from "@/lib/ai/budget";
 
 function isLaborJunkLine(description: string): boolean {
   return /job\s*t[ui]me|without\s+allowance|fuel\s+conditioning|fuel\s+tank|fuel\s+delivery|fr[uil]\b|998729|monsoon|wrong\s+fuel|electrical\s+system|quick-?inspection|sum\s+labor/i.test(
@@ -211,6 +213,7 @@ export async function reviewEstimateDetails(
 
   await enrichEstimateRetailerListings(estimateId);
   await buildComparisons(estimateId);
+  await recordFunnelEvent("REVIEW_CONFIRMED", { estimateId, path: `/results/${estimateId}` });
   revalidatePath(`/results/${estimateId}`);
   return {};
 }
@@ -299,6 +302,11 @@ export async function createManualPartsSearch(formData: FormData): Promise<void>
     return created;
   });
   await buildComparisons(estimate.id);
+  await recordFunnelEvent("ESTIMATE_CREATED", {
+    estimateId: estimate.id,
+    path: "/upload",
+    source: "manual",
+  });
   redirect(`/results/${estimate.id}`);
 }
 
@@ -347,6 +355,12 @@ export async function createEstimate(
       extractedText: data.extractedText ?? null,
       status: "PROCESSING",
     },
+  });
+
+  await recordFunnelEvent("ESTIMATE_CREATED", {
+    estimateId: estimate.id,
+    path: "/upload",
+    source: data.fileUrl === "paste://estimate" ? "paste" : "upload",
   });
 
   after(async () => {
@@ -413,8 +427,16 @@ export async function processEstimate(estimateId: string): Promise<void> {
 
     if (text) text = repairOcrText(text);
 
+    const aiReservation = hasAiConfigured()
+      ? await reserveAiCall({
+          userId: estimate.userId,
+          estimateId,
+          inputType: isImage && !isPasteOnly ? "image" : "text",
+        })
+      : null;
+    const canUseAi = Boolean(aiReservation);
     const canUseVision =
-      hasAiConfigured() && isImage && !isPasteOnly && estimate.originalFileUrl !== "paste://estimate";
+      canUseAi && isImage && !isPasteOnly && estimate.originalFileUrl !== "paste://estimate";
 
     if ((!text || text.trim().length < 12) && !canUseVision) {
       await db.estimate.update({
@@ -429,7 +451,7 @@ export async function processEstimate(estimateId: string): Promise<void> {
     }
 
     let result: ParsedEstimate & { _vin?: string | null };
-    if (hasAiConfigured()) {
+    if (canUseAi && aiReservation) {
       try {
         const imageUrl = canUseVision
           ? await getImageForAi(estimate.originalFileUrl, estimate.originalFileType)
@@ -438,7 +460,9 @@ export async function processEstimate(estimateId: string): Promise<void> {
           text: text && text.trim().length >= 12 ? text : undefined,
           imageUrl,
         });
+        await finishAiCall(aiReservation.id, true);
       } catch (err) {
+        await finishAiCall(aiReservation.id, false);
         console.error("gpt parseEstimate failed, falling back", err);
         if (!text || text.trim().length < 12) {
           throw new Error("Could not read any text from this file.");
@@ -592,6 +616,11 @@ export async function processEstimate(estimateId: string): Promise<void> {
     if (!needsVehicle && result.parts.length > 0) {
       await buildComparisons(estimateId);
     }
+    await recordFunnelEvent("ESTIMATE_PARSED", {
+      estimateId,
+      path: `/results/${estimateId}`,
+      source: canUseAi ? "ai" : "local",
+    });
   } catch (err) {
     await db.estimate.update({
       where: { id: estimateId },

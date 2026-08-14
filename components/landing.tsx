@@ -87,6 +87,11 @@ export function Hero() {
                 I don&apos;t have an estimate
               </Button>
             </Link>
+            <Link href="/sample-results">
+              <Button size="lg" variant="ghost" className="w-full text-white hover:bg-white/10 hover:text-white sm:w-auto">
+                See an example
+              </Button>
+            </Link>
           </motion.div>
           <motion.div
             variants={fadeUp}

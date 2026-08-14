@@ -98,6 +98,13 @@ function normalizeEbayItemId(value: string | null | undefined): string | null {
   return cleaned.length >= 9 && cleaned.length <= 15 ? cleaned : null;
 }
 
+/** Tagged direct Amazon URL for a known, verified ASIN. */
+export function amazonProductUrl(asin: string): string {
+  const normalized = normalizeAsin(asin);
+  if (!normalized) throw new Error("Invalid Amazon ASIN");
+  return withAmazonTag(`https://www.amazon.com/dp/${normalized}`);
+}
+
 /** Amazon product page when ASIN known; otherwise a tight automotive search. */
 export function buildAmazonLink(q: PartAffiliateQuery): AffiliateLink {
   const asin = normalizeAsin(q.amazonAsin);

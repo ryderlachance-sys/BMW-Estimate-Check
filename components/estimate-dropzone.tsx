@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { CloudUpload, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ocrQualityScore, repairOcrText } from "@/lib/ocr/repair";
+import { trackFunnelEvent } from "@/components/funnel-tracker";
 
 export interface UploadedFile {
   url: string;
@@ -100,6 +101,7 @@ export function EstimateDropzone({
 
   async function handleFile(file: File | undefined | null) {
     if (!file || uploading) return;
+    trackFunnelEvent("UPLOAD_STARTED");
     if (!allowedTypes.has(file.type)) {
       onError("Choose a PDF, PNG, JPG, or WebP estimate.");
       return;
@@ -140,6 +142,7 @@ export function EstimateDropzone({
         name: file.name,
         extractedText: extractedText ?? "",
       });
+      trackFunnelEvent("UPLOAD_COMPLETED");
     } catch {
       onError("Upload failed — please try again.");
     } finally {
