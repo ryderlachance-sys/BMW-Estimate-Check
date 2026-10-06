@@ -1,4 +1,9 @@
 import "server-only";
+import {
+  buildEbayCompatibilityFilter,
+  ebayCompatibilityProperties,
+  hasCompleteEbayCompatibility,
+} from "@/lib/retailers/ebay-compatibility";
 
 export type RetailerMatchInput = {
   year: number | null;
@@ -12,7 +17,7 @@ export type RetailerMatchInput = {
 
 export type VerifiedRetailerListing = {
   retailerName: string;
-  retailerPrice: number;
+  retailerPrice?: number;
   retailerUrl?: string;
   productTitle: string;
   fitmentNote: string;
@@ -30,6 +35,8 @@ type EbayItem = {
   buyingOptions?: string[];
   topRatedBuyingExperience?: boolean;
   seller?: { feedbackPercentage?: string; feedbackScore?: number };
+  compatibilityMatch?: "EXACT" | "POSSIBLE" | string;
+  compatibilityProperties?: Array<{ name?: string; value?: string }>;
 };
 
 type EbaySearchResponse = { itemSummaries?: EbayItem[] };
@@ -127,16 +134,6 @@ function itemLooksRelevant(item: EbayItem, input: RetailerMatchInput): boolean {
   );
 }
 
-function compatibilityProperties(input: RetailerMatchInput) {
-  return [
-    input.year ? { name: "Year", value: String(input.year) } : null,
-    input.make ? { name: "Make", value: input.make } : null,
-    input.model ? { name: "Model", value: input.model } : null,
-    input.trim ? { name: "Trim", value: input.trim } : null,
-    input.engine ? { name: "Engine", value: input.engine } : null,
-  ].filter((entry): entry is { name: string; value: string } => Boolean(entry));
-}
-
 async function isCompatible(
   token: string,
   item: EbayItem,
@@ -145,7 +142,8 @@ async function isCompatible(
 ): Promise<boolean> {
   const oem = normalize(input.oemPartNumber ?? "");
   if (oem && normalize(item.title ?? "").includes(oem)) return true;
-  if (!item.itemId || !input.year || !input.make || !input.model) return false;
+  if (item.compatibilityMatch === "EXACT") return true;
+  if (!item.itemId || !hasCompleteEbayCompatibility(input)) return false;
 
   try {
     const response = await fetch(
@@ -153,7 +151,7 @@ async function isCompatible(
       {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ compatibilityProperties: compatibilityProperties(input) }),
+        body: JSON.stringify({ compatibilityProperties: ebayCompatibilityProperties(input) }),
         cache: "no-store",
         signal: AbortSignal.timeout(6_000),
       }
@@ -204,6 +202,8 @@ export async function findExactEbayListing(
     const params = new URLSearchParams({
       q: query,
       limit: "12",
+      category_ids: "6000",
+      compatibility_filter: buildEbayCompatibilityFilter(input),
       filter: "buyingOptions:{FIXED_PRICE},conditions:{NEW}",
     });
     const response = await fetch(

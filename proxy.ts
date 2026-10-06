@@ -5,7 +5,7 @@ import {
   readCustomerToken,
 } from "@/lib/session";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const current = request.cookies.get(CUSTOMER_COOKIE)?.value;
   if (await readCustomerToken(current)) return NextResponse.next();
 

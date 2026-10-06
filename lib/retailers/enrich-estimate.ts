@@ -35,7 +35,7 @@ export async function enrichEstimateRetailerListings(estimateId: string): Promis
           retailerPrice: listing?.retailerPrice ?? null,
           productTitle: listing?.productTitle ?? null,
           retailerUrl: listing?.retailerUrl ?? null,
-          retailerCheckedAt: listing ? new Date() : null,
+          retailerCheckedAt: new Date(),
           fitmentNote: listing?.fitmentNote ?? null,
         },
       })
