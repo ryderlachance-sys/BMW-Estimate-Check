@@ -294,7 +294,7 @@ export async function createManualPartsSearch(formData: FormData): Promise<void>
           retailerPrice: listing?.retailerPrice ?? null,
           productTitle: listing?.productTitle ?? null,
           retailerUrl: listing?.retailerUrl ?? null,
-          retailerCheckedAt: listing ? new Date() : null,
+          retailerCheckedAt: new Date(),
           fitmentNote: listing?.fitmentNote ?? null,
         };
       }),
@@ -571,7 +571,7 @@ export async function processEstimate(estimateId: string): Promise<void> {
             retailerPrice: listing?.retailerPrice ?? null,
             productTitle: listing?.productTitle ?? null,
             retailerUrl: listing?.retailerUrl ?? null,
-            retailerCheckedAt: listing ? new Date() : null,
+            retailerCheckedAt: new Date(),
             fitmentNote: listing?.fitmentNote ?? null,
           };
         }),
@@ -658,6 +658,29 @@ export async function retryEstimate(
   }
 
   await processEstimate(estimateId);
+}
+
+/** Refresh live retailer prices and availability without reparsing the estimate. */
+export async function refreshEstimateRetailerData(estimateId: string): Promise<void> {
+  const user = await ensureUser();
+  const estimate = await db.estimate.findUniqueOrThrow({
+    where: { id: estimateId },
+    include: { items: { select: { retailerCheckedAt: true } } },
+  });
+  if (estimate.userId !== user.id && !user.isAdmin) throw new Error("Forbidden");
+
+  const newestCheck = Math.max(
+    0,
+    ...estimate.items.map((item) => item.retailerCheckedAt?.getTime() ?? 0)
+  );
+  if (newestCheck > Date.now() - 5 * 60 * 1_000) {
+    revalidatePath(`/results/${estimateId}`);
+    return;
+  }
+
+  await enrichEstimateRetailerListings(estimateId);
+  await buildComparisons(estimateId);
+  revalidatePath(`/results/${estimateId}`);
 }
 
 /**

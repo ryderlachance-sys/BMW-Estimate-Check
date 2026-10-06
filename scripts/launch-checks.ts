@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { buildAmazonLink, buildEbayLink } from "../lib/affiliates";
 import { findCuratedListing } from "../lib/curated-listings";
+import { buildEbayCompatibilityFilter } from "../lib/retailers/ebay-compatibility";
 import { scanEstimateKeywords } from "../lib/ai/keyword-scanner";
 
 const jeep = scanEstimateKeywords(`
@@ -36,6 +37,18 @@ const lexusRotor = findCuratedListing({
   description: "Front brake rotor pair",
 });
 assert.equal(lexusRotor?.amazonAsin, "B09HZ459FG");
-assert.equal(lexusRotor?.retailerPrice, 92.95);
+assert.equal(lexusRotor?.retailerPrice, undefined);
 
-console.log("Launch checks passed: parsing, vehicle detection, pricing, and direct retailer links.");
+assert.equal(
+  buildEbayCompatibilityFilter({
+    year: 2021,
+    make: "Lexus",
+    model: "ES 350",
+    trim: "Base",
+    engine: "3.5L V6",
+    description: "Front brake rotors",
+  }),
+  "Year:2021;Make:Lexus;Model:ES 350;Trim:Base;Engine:3.5L V6"
+);
+
+console.log("Launch checks passed: parsing, vehicle detection, safe product identity, and direct retailer links.");

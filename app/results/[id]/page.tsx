@@ -8,6 +8,7 @@ import { formatCurrency, round2 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   ProcessingPoller,
+  RefreshRetailerDataButton,
   RetryParseButton,
 } from "@/components/results-actions";
 import { ConfirmVehicleForm } from "@/components/confirm-vehicle-form";
@@ -25,6 +26,26 @@ export const metadata: Metadata = {
   title: "Your Savings",
   robots: { index: false },
 };
+
+/** eBay is currently the only configured source that returns a live price. */
+function getFreshRetailerPrice(item?: {
+  retailerName: string | null;
+  retailerPrice: number | null;
+  retailerCheckedAt: Date | null;
+} | null): number | null {
+  if (
+    item?.retailerName !== "eBay" ||
+    item.retailerPrice == null ||
+    item.retailerPrice <= 0 ||
+    !item.retailerCheckedAt
+  ) {
+    return null;
+  }
+  const maxAgeMs = 24 * 60 * 60 * 1_000;
+  return Date.now() - item.retailerCheckedAt.getTime() <= maxAgeMs
+    ? item.retailerPrice
+    : null;
+}
 
 export default async function ResultsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -178,15 +199,18 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         item.description
       )
   );
-  const totalSavings = round2(
-    primaryLines.reduce((s, c) => s + Math.max(0, c.savings), 0)
-  );
+  const effectiveOnlinePrice = (comparison: (typeof primaryLines)[number]) =>
+    getFreshRetailerPrice(comparison.estimateItem) ?? comparison.ourPrice;
+  const effectiveSavings = (comparison: (typeof primaryLines)[number]) =>
+    Math.max(0, comparison.mechanicPrice - effectiveOnlinePrice(comparison));
+  const totalSavings = round2(primaryLines.reduce((s, c) => s + effectiveSavings(c), 0));
   const shopParts = round2(
     primaryLines.length > 0
       ? primaryLines.reduce((s, c) => s + c.mechanicPrice, 0)
       : estimate.items.reduce((s, i) => s + i.mechanicPrice, 0)
   );
-  const onlineParts = round2(primaryLines.reduce((s, c) => s + c.ourPrice, 0));
+  const onlineParts = round2(primaryLines.reduce((s, c) => s + effectiveOnlinePrice(c), 0));
+  const livePriceCount = primaryLines.filter((c) => getFreshRetailerPrice(c.estimateItem) != null).length;
   const carLabel = `${estimate.vehicle.year} ${estimate.vehicle.make !== "Unknown" ? estimate.vehicle.make + " " : ""}${estimate.vehicle.model}${
     estimate.vehicle.engine ? ` · ${estimate.vehicle.engine}` : ""
   }`;
@@ -218,16 +242,17 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
         unmatchedItems.reduce((s, i) => s + i.mechanicPrice, 0)
       );
       const verifiedOnline = round2(
-        unmatchedItems.reduce((sum, item) => sum + (item.retailerPrice ?? 0), 0)
+        unmatchedItems.reduce((sum, item) => sum + (getFreshRetailerPrice(item) ?? 0), 0)
       );
       const verifiedShop = round2(
         unmatchedItems.reduce(
-          (sum, item) => sum + (item.retailerPrice ? item.mechanicPrice : 0),
+          (sum, item) => sum + (getFreshRetailerPrice(item) ? item.mechanicPrice : 0),
           0
         )
       );
       const verifiedSavings = round2(Math.max(0, verifiedShop - verifiedOnline));
       const checkoutItems = unmatchedItems.flatMap((item) => {
+        const livePrice = getFreshRetailerPrice(item);
         const query = {
           brand: "",
           name: item.description,
@@ -239,16 +264,16 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           amazonAsin: item.amazonAsin,
           ebayItemId: item.ebayItemId,
         };
-        const bundle = buildProductBuyBundle(query, item.retailerPrice ?? 0.01);
+        const bundle = buildProductBuyBundle(query, livePrice ?? 0.01);
         const link = item.retailerUrl && item.retailerName
           ? { label: item.retailerName, url: item.retailerUrl }
           : [bundle.amazon, bundle.ebay].find((candidate) => candidate.isProductPage);
-        return item.retailerPrice && link
+        return livePrice && link
           ? [{
               id: item.id,
               title: item.productTitle ?? item.description,
               retailer: link.label,
-              price: item.retailerPrice,
+              price: livePrice,
               url: link.url,
               vehicle: carLabel,
               mechanicPrice: item.mechanicPrice,
@@ -284,8 +309,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             </p>
           </div>
           <VerifiedPartsCheckout items={checkoutItems} />
-          {unmatchedItems.some((item) => !item.retailerPrice) && <ul className="mt-6 space-y-2.5">
-            {unmatchedItems.filter((item) => !item.retailerPrice).map((item) => {
+          {unmatchedItems.some((item) => !getFreshRetailerPrice(item)) && <ul className="mt-6 space-y-2.5">
+            {unmatchedItems.filter((item) => !getFreshRetailerPrice(item)).map((item) => {
+              const livePrice = getFreshRetailerPrice(item);
               const query = {
                 brand: "",
                 name: item.description,
@@ -297,21 +323,21 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                 amazonAsin: item.amazonAsin,
                 ebayItemId: item.ebayItemId,
               };
-              const listingPrice = item.retailerPrice ?? item.mechanicPrice * 0.55;
+              const listingPrice = livePrice ?? item.mechanicPrice * 0.55;
               const bundle = buildProductBuyBundle(query, listingPrice);
               const directListing =
-                item.retailerUrl && item.retailerName && item.retailerPrice
+                item.retailerUrl && item.retailerName
                   ? {
                       id: item.retailerName.toLowerCase(),
                       label: item.retailerName,
-                      hint: "Verified exact product listing",
+                      hint: "Exact product identified — check price and fitment",
                       url: item.retailerUrl,
                       isProductPage: true,
-                      estimatedPrice: item.retailerPrice,
+                      estimatedPrice: listingPrice,
                     }
                   : null;
-              const savings = item.retailerPrice
-                ? Math.max(0, item.mechanicPrice - item.retailerPrice)
+              const savings = livePrice
+                ? Math.max(0, item.mechanicPrice - livePrice)
                 : null;
               return (
                 <li
@@ -325,9 +351,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                     {!manualSearch && <p className="mt-0.5 text-xs text-muted-foreground">
                       Shop charged {formatCurrency(item.mechanicPrice)}
                     </p>}
-                    {item.retailerPrice && (
+                    {livePrice && (
                       <p className="mt-1 text-sm font-extrabold text-primary">
-                        {item.retailerName ?? "Online"} {formatCurrency(item.retailerPrice)}
+                        {item.retailerName ?? "Online"} {formatCurrency(livePrice)}
                         {!manualSearch && savings !== null && (
                           <span className="ml-2 text-xs font-semibold text-success">
                             Save {formatCurrency(savings)}
@@ -340,7 +366,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                         ✓ {item.fitmentNote}
                       </p>
                     )}
-                    {item.retailerCheckedAt && (
+                    {livePrice && item.retailerCheckedAt && (
                       <p className="mt-0.5 text-[10px] text-muted-foreground">
                         Price checked {item.retailerCheckedAt.toLocaleDateString("en-US", {
                           month: "short",
@@ -376,6 +402,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             initialParts={reviewParts}
           />
           <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <RefreshRetailerDataButton estimateId={estimate.id} />
             <RetryParseButton estimateId={estimate.id} />
             <Link href="/upload">
               <Button variant="outline">Upload again</Button>
@@ -437,7 +464,12 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             ? unmatchedPartItems.length > 0
               ? `${primaryLines.length} matched · ${unmatchedPartItems.length} still needs retailer confirmation.`
               : "Confirm current price and exact fitment with the retailer before buying."
-            : <>Matched shop parts {formatCurrency(shopParts)} → catalog estimate about {formatCurrency(onlineParts)}</>}
+            : <>
+                Matched shop parts {formatCurrency(shopParts)} → online total about {formatCurrency(onlineParts)}
+                {livePriceCount > 0
+                  ? ` · ${livePriceCount} live price${livePriceCount === 1 ? "" : "s"}`
+                  : " · catalog estimates"}
+              </>}
         </p>
       </div>
 
@@ -465,8 +497,23 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             amazonAsin: primary.catalogPart.amazonAsin ?? primary.estimateItem?.amazonAsin,
             ebayItemId: primary.catalogPart.ebayItemId ?? primary.estimateItem?.ebayItemId,
           };
-          const bundle = buildProductBuyBundle(query, primary.ourPrice);
-          const hasVerifiedListing = bundle.amazon.isProductPage || bundle.ebay.isProductPage;
+          const liveRetailerPrice = getFreshRetailerPrice(primary.estimateItem);
+          const displayPrice = liveRetailerPrice ?? primary.ourPrice;
+          const displaySavings = Math.max(0, primary.mechanicPrice - displayPrice);
+          const bundle = buildProductBuyBundle(query, displayPrice);
+          const directListing =
+            primary.estimateItem?.retailerUrl && primary.estimateItem.retailerName
+              ? {
+                  id: primary.estimateItem.retailerName.toLowerCase(),
+                  label: primary.estimateItem.retailerName,
+                  hint: liveRetailerPrice != null
+                    ? "Live exact product listing"
+                    : "Exact product identified — check current price",
+                  url: primary.estimateItem.retailerUrl,
+                  isProductPage: true,
+                  estimatedPrice: displayPrice,
+                }
+              : null;
           const title = cleanPartDisplayName(
             primary.catalogPart.brand,
             primary.catalogPart.name,
@@ -474,7 +521,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           );
           const savingsPct =
             primary.mechanicPrice > 0
-              ? (Math.max(0, primary.savings) / primary.mechanicPrice) * 100
+              ? (displaySavings / primary.mechanicPrice) * 100
               : null;
 
           return (
@@ -503,12 +550,14 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                               {formatCurrency(primary.mechanicPrice)}
                             </span>}
                             <span className="text-sm font-extrabold tabular-nums text-primary">
-                              {hasVerifiedListing ? "Verified listing" : "Catalog estimate"}{" "}
-                              {formatCurrency(primary.ourPrice)}
+                              {liveRetailerPrice != null
+                                ? `Live ${primary.estimateItem?.retailerName ?? "retailer"} price`
+                                : "Catalog estimate"}{" "}
+                              {formatCurrency(displayPrice)}
                             </span>
-                            {!manualSearch && primary.savings > 0 && (
+                            {!manualSearch && displaySavings > 0 && (
                               <span className="text-[11px] font-semibold text-success">
-                                Est. save {formatCurrency(primary.savings)}
+                                {liveRetailerPrice != null ? "Save" : "Est. save"} {formatCurrency(displaySavings)}
                               </span>
                             )}
                           </div>
@@ -516,6 +565,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                       </div>
                       <PartBuyAction
                         bundle={bundle}
+                        directListing={directListing}
                         className="sm:w-auto sm:shrink-0"
                         fitment={{
                           year: estimate.vehicle.year,
@@ -543,6 +593,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           </div>
           <ul className="space-y-2.5">
             {unmatchedPartItems.map((item) => {
+              const livePrice = getFreshRetailerPrice(item);
               const bundle = buildProductBuyBundle(
                 {
                   brand: "",
@@ -555,17 +606,18 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                   amazonAsin: item.amazonAsin,
                   ebayItemId: item.ebayItemId,
                 },
-                item.retailerPrice ?? Math.max(0.01, item.mechanicPrice * 0.55)
+                livePrice ?? Math.max(0.01, item.mechanicPrice * 0.55)
               );
               const directListing =
-                item.retailerUrl && item.retailerName && item.retailerPrice
+                item.retailerUrl && item.retailerName
                   ? {
                       id: item.retailerName.toLowerCase(),
                       label: item.retailerName,
-                      hint: "Verified exact product listing",
+                      hint: "Exact product identified — check price and fitment",
                       url: item.retailerUrl,
                       isProductPage: true,
-                      estimatedPrice: item.retailerPrice,
+                      estimatedPrice:
+                        livePrice ?? Math.max(0.01, item.mechanicPrice * 0.55),
                     }
                   : null;
 
@@ -582,7 +634,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
                       </p>
                     )}
                     <p className="mt-1 text-[11px] font-medium text-amber-700">
-                      No safe catalog match yet — confirm fitment at the retailer.
+                      {directListing
+                        ? "Exact product identified — confirm the current retailer price."
+                        : "No safe catalog match yet — confirm fitment at the retailer."}
                     </p>
                   </div>
                   <PartBuyAction
@@ -611,9 +665,10 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
       />
 
       <div className="mt-10 text-center">
+        <RefreshRetailerDataButton estimateId={estimate.id} />
         <Link
           href="/upload"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
         >
           Check another estimate
           <ArrowRight className="size-3.5" />
