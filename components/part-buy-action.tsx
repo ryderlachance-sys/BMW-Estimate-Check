@@ -34,85 +34,46 @@ export function PartBuyAction({
     () => directListing ?? [amazon, ebay].find((link) => link.isProductPage) ?? null,
     [amazon, ebay, directListing]
   );
-  const alternatives = [amazon, ebay, rockAuto].filter(
-    (link) => link.isProductPage && link.url !== recommended?.url
-  );
 
-  if (!recommended) {
-    const searchLink = amazon;
-    const searchAlternatives = [ebay, rockAuto].filter(
-      (link) => link.url !== searchLink.url
-    );
-
-    return (
-      <div className={cn("w-full sm:w-[15rem] sm:shrink-0", className)}>
-        <button
-          type="button"
-          onClick={() => setPending(searchLink)}
-          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 active:scale-[0.99]"
-        >
-          Find this part on Amazon
-          <ExternalLink className="size-3.5 opacity-80" />
-        </button>
-        <AffiliateDisclosure className="mt-1.5 text-center" />
-        <details className="mt-1.5 text-center">
-          <summary className="cursor-pointer list-none text-[11px] font-semibold text-muted-foreground hover:text-foreground">
-            Compare other stores
-          </summary>
-          <div className="mt-2 grid gap-1.5 rounded-xl border bg-background p-2 text-left">
-            {searchAlternatives.map((link) => (
-              <button
-                key={link.id}
-                type="button"
-                onClick={() => setPending(link)}
-                className="flex min-h-9 items-center justify-between rounded-lg px-2.5 text-xs font-semibold hover:bg-secondary"
-              >
-                <span>Search {link.label}</span>
-                <ExternalLink className="size-3.5 text-muted-foreground" />
-              </button>
-            ))}
-          </div>
-        </details>
-
-        {pending && (
-          <FitmentInterstitial
-            link={pending}
-            fitment={fitment}
-            onClose={() => setPending(null)}
-          />
-        )}
-      </div>
-    );
-  }
+  const primaryLinks = recommended
+    ? [recommended, ...[amazon, ebay].filter(
+        (l) => l.url !== recommended.url && l.isProductPage
+      )]
+    : [amazon, ebay];
 
   return (
     <div className={cn("w-full sm:w-[15rem] sm:shrink-0", className)}>
-      <button
-        type="button"
-        onClick={() => setPending(recommended)}
-        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.99]"
-      >
-        {`Buy exact part on ${recommended.label}`}
-        <ExternalLink className="size-3.5 opacity-80" />
-      </button>
+      <div className="grid gap-2">
+        {primaryLinks.map((link, i) => (
+          <button
+            key={link.id}
+            type="button"
+            onClick={() => setPending(link)}
+            className={cn(
+              "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold shadow-sm transition active:scale-[0.99]",
+              i === 0
+                ? "bg-zinc-950 text-white hover:bg-zinc-800"
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
+            )}
+          >
+            {link.isProductPage ? `Buy on ${link.label}` : `Find on ${link.label}`}
+            <ExternalLink className="size-3.5 opacity-80" />
+          </button>
+        ))}
+      </div>
       <AffiliateDisclosure className="mt-1.5 text-center" />
 
-      {alternatives.length > 0 && (
-        <div className="mt-2 grid gap-1.5 rounded-xl border bg-background p-2">
-          {alternatives.map((link) => (
-            <button
-              key={link.id}
-              type="button"
-              onClick={() => setPending(link)}
-              className="flex min-h-9 items-center justify-between rounded-lg px-2.5 text-left text-xs font-semibold hover:bg-secondary"
-            >
-              <span>
-                View exact product on {link.label}
-              </span>
-              <ExternalLink className="size-3.5 text-muted-foreground" />
-            </button>
-          ))}
-        </div>
+      {rockAuto.url && (
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => setPending(rockAuto)}
+            className="underline decoration-dotted underline-offset-2 hover:text-foreground"
+          >
+            Alternative wholesaler deal on RockAuto
+            {rockAuto.estimatedPrice != null && ` ($${rockAuto.estimatedPrice})`}
+          </button>
+        </p>
       )}
 
       {pending && (
